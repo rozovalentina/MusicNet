@@ -1,0 +1,1 @@
+// Contiene la lógica para mapear escalas modales.

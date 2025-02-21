@@ -1,0 +1,1 @@
+//Maneja la detección de tono y comunicación con el usuario.

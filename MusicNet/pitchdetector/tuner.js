@@ -1,0 +1,1 @@
+//# Controla el ajuste de tonos en tiempo real.

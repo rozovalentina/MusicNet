@@ -1,0 +1,1 @@
+//Maneja la representación visual del juego.

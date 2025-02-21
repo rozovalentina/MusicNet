@@ -1,0 +1,1 @@
+//Define el ritmo del juego (4/4).

@@ -1,0 +1,1 @@
+//Gestiona la conexión en red y la sincronización.
