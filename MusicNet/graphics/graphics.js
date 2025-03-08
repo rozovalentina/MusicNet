@@ -40,7 +40,7 @@ var config = {
 				gravity: { y: gravity },
 				debug: false
 		}
-	}
+	},
 };
 
 var game = new Phaser.Game(config);
@@ -380,7 +380,7 @@ var settingsScene = {
 		gameModalityTextDesc = this.add.text(resolution[0]/2+settingsOffset,resolution[1]/2.2, "______________________________________\nGame Modality & Modal Scale",  { font: "bold 22px Arial", fill: "#003366"}).setOrigin(0.5);
 		gameModalityTextDesc.setAlign('center');
 
-	  startGameLevel = scales.indexOf(modalScaleName);
+	  	startGameLevel = scales.indexOf(modalScaleName);
 		modalScaleText = this.add.text(resolution[0]/2+settingsOffset,resolution[1]/1.6, "",  { font: "bold 22px Arial", fill: "#003366"}).setOrigin(0.5);
 		modalScaleText.setText(modalScaleName.charAt(0).toUpperCase() + modalScaleName.slice(1));
 		modalScaleText.setBackgroundColor("rgba(160, 219, 255, 0.5)");
@@ -480,19 +480,8 @@ var settingsScene = {
 		startGame.setShadow(2, 2, 'rgba(0,0,0,0.5)', 2);
 		startGame.setInteractive();
 		startGame.on('pointerdown', function() {
-			askForStartGame = true;
+			game.scene.start("multiplayerScene");
 		});
-		/*let singlePlayerButton = this.add.text(resolution[0]/2, resolution[1]/2 - 50, "Un Jugador",  
-            { font: "bold 26px Arial", fill: "#FFFFFF", backgroundColor: "rgba(151, 151, 246, 0.7)" })
-            .setOrigin(0.5)
-            .setPadding(15, 10, 15, 10)
-            .setInteractive();
-
-        let multiplayerButton = this.add.text(resolution[0]/2, resolution[1]/2 + 50, "Multijugador",  
-            { font: "bold 26px Arial", fill: "#FFFFFF", backgroundColor: "rgba(84, 176, 241, 0.7)" })
-            .setOrigin(0.5)
-            .setPadding(15, 10, 15, 10)
-            .setInteractive();*/
 
 		this.input.keyboard.on('keydown', function(event) {
 			if(event.key == " " || event.key == "Enter") {
@@ -525,6 +514,119 @@ var settingsScene = {
 	}
 }
 game.scene.add("settingsScene", settingsScene);
+
+function generateRoomCode() {
+    const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    const codeLength = 6;
+    let roomCode = '';
+
+    for (let i = 0; i < codeLength; i++) {
+        const randomIndex = Math.floor(Math.random() * characters.length);
+        roomCode += characters[randomIndex];
+    }
+
+    return roomCode;
+}
+
+var multiplayerScene = {
+    preload: function () {
+        // Cargar recursos necesarios para la escena de multijugador
+        this.load.image('background', 'assets/background.jpg'); // Cargar una imagen de fondo si es necesario
+    },
+    create: function () {
+        // Fondo de la escena
+        this.add.image(resolution[0] / 2, resolution[1] / 2, 'background').setDisplaySize(resolution[0], resolution[1]);
+        // Título de la escena
+        this.add.text(resolution[0] / 2, resolution[1] / 4, "MusicNet", 
+            { font: "bold 48px Arial", fill: "#003366", align: "center" })
+            .setOrigin(0.5);
+
+        // Botón "Crear Sala"
+        this.add.text(resolution[0] / 2 - 150, resolution[1] / 2, "Crear Sala",  
+            { font: "bold 26px Arial", fill: "#FFFFFF", backgroundColor: "rgba(151, 151, 246, 0.7)" })
+            .setOrigin(0.5)
+            .setPadding(20, 10, 20, 10) // Ajustar el padding para que el botón sea más grande
+            .setInteractive()
+            .on('pointerdown', function () {
+                const roomCode = generateRoomCode(); 
+                game.scene.start("createRoomScene", { roomCode: roomCode }); // Ir a la escena de creación de sala
+            });
+
+        // Botón "Unirse a una sala"
+        this.add.text(resolution[0] / 2 + 150, resolution[1] / 2, "Unirse a una sala",  
+            { font: "bold 26px Arial", fill: "#FFFFFF", backgroundColor: "rgba(84, 176, 241, 0.7)" })
+            .setOrigin(0.5)
+            .setPadding(20, 10, 20, 10) // Ajustar el padding para que el botón sea más grande
+            .setInteractive()
+            .on('pointerdown', function () {
+                game.scene.start("joinRoomScene"); // Ir a la escena de unirse a una sala
+            });
+    }
+};
+game.scene.add("multiplayerScene", multiplayerScene);
+var createRoomScene = {
+    preload: function () {
+        // Cargar recursos necesarios para la escena de multijugador
+        this.load.image('background', 'assets/background.jpg'); // Cargar una imagen de fondo si es necesario
+    },
+    create: function (data) {
+		if(!data||!data.roomCode){
+			console.error("No se ha proporcionado un código de sala");
+			return;
+		}
+        const roomCode = data.roomCode; // Código generado en la escena anterior
+
+		// Fondo de la escena
+        this.add.image(resolution[0] / 2, resolution[1] / 2, 'background').setDisplaySize(resolution[0], resolution[1]);
+        
+        // Título de la escena
+        this.add.text(resolution[0] / 2, resolution[1] / 4, "Sala Creada", 
+            { font: "bold 48px Arial", fill: "#FFFFFF", align: "center" })
+            .setOrigin(0.5);
+
+        // Mostrar el código de la sala
+        this.add.text(resolution[0] / 2, resolution[1] / 2, `Código: ${roomCode}`, 
+            { font: "bold 32px Arial", fill: "#FFFFFF", align: "center" })
+            .setOrigin(0.5);
+
+    }
+};
+game.scene.add("createRoomScene", createRoomScene);
+
+var joinRoomScene = {
+    preload: function () {
+        // Cargar recursos necesarios para la escena de multijugador
+        this.load.image('background', 'assets/background.jpg'); // Cargar una imagen de fondo si es necesario
+    },
+    create: function () {
+        // Fondo de la escena
+        this.add.image(resolution[0] / 2, resolution[1] / 2, 'background').setDisplaySize(resolution[0], resolution[1]);
+        // Título de la escena
+        this.add.text(resolution[0] / 2, resolution[1] / 4, "Unirse a una Sala", 
+            { font: "bold 48px Arial", fill: "#FFFFFF", align: "center" })
+            .setOrigin(0.5);
+
+        // Campo de entrada para el código de la sala
+        const roomCodeInput = this.add.dom(resolution[0] / 2, resolution[1] / 2, 'input', 
+            { type: 'text', placeholder: 'Ingresa el código de la sala', fontSize: '24px', width: '300px', height: '40px' })
+            .setOrigin(0.5);
+
+        // Botón "Unirse"
+        this.add.text(resolution[0] / 2, resolution[1] / 2 + 80, "Unirse",  
+            { font: "bold 22px Arial", fill: "#FFFFFF", backgroundColor: "rgba(84, 176, 241, 0.7)" })
+            .setOrigin(0.5)
+            .setPadding(10, 5, 10, 5) // Padding más pequeño
+            .setInteractive({ useHandCursor: true }) // Cambiar el cursor al pasar el mouse
+            .on('pointerdown', () => {
+                const roomCode = roomCodeInput.node.value;
+                if (roomCode) {
+                    startWebRTCClient(roomCode); // Iniciar la conexión WebRTC como cliente
+                }
+            });
+
+    }
+};
+game.scene.add("joinRoomScene", joinRoomScene);
 
 function loadSettings() {
 
