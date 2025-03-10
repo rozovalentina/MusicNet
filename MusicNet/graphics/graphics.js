@@ -561,6 +561,16 @@ var multiplayerScene = {
             .on('pointerdown', function () {
                 game.scene.start("joinRoomScene"); // Ir a la escena de unirse a una sala
             });
+		// Botón "Regresar"
+		this.add.text(20, 20, "← Regresar",  
+    		{ font: "bold 22px Arial", fill: "#FFFFFF", backgroundColor: "rgba(0, 107, 200, 0.7)" })
+   		 .setPadding(10, 5, 10, 5)
+   		 .setInteractive()
+   		 .on('pointerdown', function () {
+   		     	game.scene.stop("multiplayerScene"); // Detiene la escena actual
+    		    game.scene.start("settingsScene"); // Regresa a la escena principal
+    		});
+
     }
 };
 game.scene.add("multiplayerScene", multiplayerScene);
@@ -581,14 +591,22 @@ var createRoomScene = {
         
         // Título de la escena
         this.add.text(resolution[0] / 2, resolution[1] / 4, "Sala Creada", 
-            { font: "bold 48px Arial", fill: "#FFFFFF", align: "center" })
+            { font: "bold 48px Arial", fill: "#0b0b0b", align: "center" })
             .setOrigin(0.5);
 
         // Mostrar el código de la sala
         this.add.text(resolution[0] / 2, resolution[1] / 2, `Código: ${roomCode}`, 
-            { font: "bold 32px Arial", fill: "#FFFFFF", align: "center" })
+            { font: "bold 32px Arial", fill: "#0b0b0b", align: "center" })
             .setOrigin(0.5);
-
+		// Botón "Regresar"
+		this.add.text(20, 20, "← Regresar",  
+    		{ font: "bold 22px Arial", fill: "#FFFFFF", backgroundColor: "rgba(0, 107, 200, 0.7)" })
+   		 .setPadding(10, 5, 10, 5)
+   		 .setInteractive()
+   		 .on('pointerdown', function () {
+   		     	game.scene.stop("createRoomScene"); // Detiene la escena actual
+    		    game.scene.start("settingsScene"); // Regresa a la escena principal
+    		});
     }
 };
 game.scene.add("createRoomScene", createRoomScene);
@@ -602,8 +620,17 @@ var joinRoomScene = {
         // Fondo de la escena
         this.add.image(resolution[0] / 2, resolution[1] / 2, 'background').setDisplaySize(resolution[0], resolution[1]);
         // Título de la escena
+		// Botón "Regresar"
+		this.add.text(20, 20, "← Regresar",  
+    		{ font: "bold 22px Arial", fill: "#FFFFFF", backgroundColor: "rgba(0, 107, 200, 0.7)" })
+   		 .setPadding(10, 5, 10, 5)
+   		 .setInteractive()
+   		 .on('pointerdown', function () {
+   		     	game.scene.stop("joinRoomScene"); // Detiene la escena actual
+    		    game.scene.start("settingsScene"); // Regresa a la escena principal
+    		});
         this.add.text(resolution[0] / 2, resolution[1] / 4, "Unirse a una Sala", 
-            { font: "bold 48px Arial", fill: "#FFFFFF", align: "center" })
+            { font: "bold 48px Arial", fill: "#0b0b0b", align: "center" })
             .setOrigin(0.5);
 
         // Campo de entrada para el código de la sala
@@ -613,7 +640,7 @@ var joinRoomScene = {
 
         // Botón "Unirse"
         this.add.text(resolution[0] / 2, resolution[1] / 2 + 80, "Unirse",  
-            { font: "bold 22px Arial", fill: "#FFFFFF", backgroundColor: "rgba(84, 176, 241, 0.7)" })
+            { font: "bold 22px Arial", fill: "#0b0b0b", backgroundColor: "rgba(84, 176, 241, 0.7)" })
             .setOrigin(0.5)
             .setPadding(10, 5, 10, 5) // Padding más pequeño
             .setInteractive({ useHandCursor: true }) // Cambiar el cursor al pasar el mouse
@@ -623,7 +650,7 @@ var joinRoomScene = {
                     startWebRTCClient(roomCode); // Iniciar la conexión WebRTC como cliente
                 }
             });
-
+		
     }
 };
 game.scene.add("joinRoomScene", joinRoomScene);
