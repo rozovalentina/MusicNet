@@ -5,13 +5,13 @@ var gravity = 850;
 var gameVelocity = 1;
 var playerGravity = 2000*gameVelocity;
 var numberOfLevels = 8;
-var backgroundGridColor = 0xADD8E6; 
-var backgroundColor = 0xE0F7FA; 
-var platformColor = 0x41423c; 
-var gridColor = "186, 181, 180, "
+var backgroundGridColor = 0xA98467; 
+var backgroundColor = 0xF0EAD2; 
+var platformColor = 0xA98467; 
+var gridColor = "221,229,182, "; // Verde (RGB: 0, 128, 0)
 var gridOpacity = 0.4;
 var fontSize = 20;
-var fontColor = '#003366';
+var fontColor = '#A98467';
 var pointsToChangeLevel = 5;
 
 //Default Settings
@@ -250,7 +250,7 @@ var settingsScene = {
 
 		initVariables();
 
-		this.cameras.main.setBackgroundColor('#E0F7FA');
+		this.cameras.main.setBackgroundColor('#F0EAD2');
 		this.cameras.main.fadeIn(500, 255,255,255);
 
 		settingsOffset = 0;
@@ -282,25 +282,25 @@ var settingsScene = {
 		//Relative scale settings
 		//------------------------------------------------------------------------------------------------------
 		firstNote = noteReference;
-		firstNoteTextDesc = this.add.text(resolution[0]/2+settingsOffset,resolution[1]/10, "______________________________________\nTonal Reference",  { font: "bold 22px Arial", fill: "#003366"}).setOrigin(0.5);
+		firstNoteTextDesc = this.add.text(resolution[0]/2+settingsOffset,resolution[1]/10, "______________________________________\nTonal Reference",  { font: "bold 22px Arial", fill: "#6C584C"}).setOrigin(0.5);
 		firstNoteTextDesc.setAlign('center');
-		firstNoteText = this.add.text(resolution[0]/2+settingsOffset-100,resolution[1]/3.6, "",  { font: "bold 22px Arial", fill: "#003366"}).setOrigin(0.5);
+		firstNoteText = this.add.text(resolution[0]/2+settingsOffset-100,resolution[1]/3.6, "",  { font: "bold 22px Arial", fill: "#A98467"}).setOrigin(0.5);
 		firstNoteText.setText(firstNote);
-		firstNoteText.setBackgroundColor("rgba(160, 207, 255, 0.5)");
+		firstNoteText.setBackgroundColor("rgba(240,234,210)"); //Color caja c3
 		firstNoteText.setPadding(13, 13, 13, 13);
 		firstNoteText.setInteractive();
 		firstNoteText.on('pointerdown', function() {
 			playNote(firstNote, 1.5);
 		});
 
-		prevNote = this.add.text(resolution[0]/2+settingsOffset-50-100,resolution[1]/3.6, "<",  { font: "bold 22px Arial", fill: "#003366"}).setOrigin(0.5);
+		prevNote = this.add.text(resolution[0]/2+settingsOffset-50-100,resolution[1]/3.6, "<",  { font: "bold 22px Arial", fill: "#6C584C"}).setOrigin(0.5);
 		prevNote.setPadding(6, 10, 6, 10);
 		prevNote.setInteractive();
 		prevNote.on('pointerdown', function() {
-			nextNote.setFill("#003366"); 
+			nextNote.setFill("#6C584C"); 
 			if(firstNote != "C2"){
 				if(firstNote == "C#2") {
-					prevNote.setFill("rgba(160, 212, 245, 0.5)");
+					prevNote.setFill("#6C584C");
 				}
 
 				if(firstNote.substring(1,2) == "#")
@@ -327,14 +327,14 @@ var settingsScene = {
 			}
 		});
 
-		nextNote = this.add.text(resolution[0]/2+settingsOffset+50-100,resolution[1]/3.6, ">",  { font: "bold 22px Arial", fill: "#003366"}).setOrigin(0.5);
+		nextNote = this.add.text(resolution[0]/2+settingsOffset+50-100,resolution[1]/3.6, ">",  { font: "bold 22px Arial", fill: "#6C584C"}).setOrigin(0.5);
 		nextNote.setPadding(6, 10, 6, 10);
 		nextNote.setInteractive();
 		nextNote.on('pointerdown', function() {
-			prevNote.setFill("#003366");
+			prevNote.setFill("#6C584C");
 			if(firstNote != "B5"){ //Set max range
 				if(firstNote == "A#5"){ //Set "inactive"
-					nextNote.setFill("rgba(245,160,160,0.5)");
+					nextNote.setFill("#6C584C");
 				}
 
 				if(firstNote.substring(1,2) == "#")
@@ -359,9 +359,9 @@ var settingsScene = {
 			}
 		});
 
-		playOctaveButton = this.add.text(resolution[0]/2+settingsOffset+100,resolution[1]/3.6, "Play Octave",  { font: "bold 22px Arial", fill: "#003366"}).setOrigin(0.5);
-		playOctaveButton.setBackgroundColor("rgba(160, 199, 240, 0.5)");
-		playOctaveButton.setFill("#003366");
+		playOctaveButton = this.add.text(resolution[0]/2+settingsOffset+100,resolution[1]/3.6, "Play Octave",  { font: "bold 22px Arial", fill: "#F0EAD2"}).setOrigin(0.5);
+		playOctaveButton.setBackgroundColor("#A98467");
+		playOctaveButton.setFill("#F0EAD2");
 		playOctaveButton.setPadding(10, 10, 10, 10);
 		playOctaveButton.setInteractive();
 		playOctaveButton.on('pointerdown', function() {
@@ -377,16 +377,16 @@ var settingsScene = {
 
 		//Game Modality
 		//------------------------------------------------------------------------------------------------------
-		gameModalityTextDesc = this.add.text(resolution[0]/2+settingsOffset,resolution[1]/2.2, "______________________________________\nGame Modality & Modal Scale",  { font: "bold 22px Arial", fill: "#003366"}).setOrigin(0.5);
+		gameModalityTextDesc = this.add.text(resolution[0]/2+settingsOffset,resolution[1]/2.2, "______________________________________\nGame Modality & Modal Scale",  { font: "bold 22px Arial", fill: "#6C584C"}).setOrigin(0.5);
 		gameModalityTextDesc.setAlign('center');
 
 	  	startGameLevel = scales.indexOf(modalScaleName);
-		modalScaleText = this.add.text(resolution[0]/2+settingsOffset,resolution[1]/1.6, "",  { font: "bold 22px Arial", fill: "#003366"}).setOrigin(0.5);
+		modalScaleText = this.add.text(resolution[0]/2+settingsOffset,resolution[1]/1.6, "",  { font: "bold 22px Arial", fill: "#F0EAD2"}).setOrigin(0.5);
 		modalScaleText.setText(modalScaleName.charAt(0).toUpperCase() + modalScaleName.slice(1));
-		modalScaleText.setBackgroundColor("rgba(160, 219, 255, 0.5)");
+		modalScaleText.setBackgroundColor("#A98467");
 		modalScaleText.setPadding(13, 13, 13, 13);
 
-		prevScale = this.add.text(resolution[0]/2+settingsOffset,resolution[1]/1.8, ">",  { font: "bold 22px Arial", fill: "#003366"}).setOrigin(0.5);
+		prevScale = this.add.text(resolution[0]/2+settingsOffset,resolution[1]/1.8, ">",  { font: "bold 22px Arial", fill: "#6C584C"}).setOrigin(0.5);
 		prevScale.setAngle(-90);
 		prevScale.setPadding(6, 10, 6, 10);
 		prevScale.setInteractive();
@@ -400,7 +400,7 @@ var settingsScene = {
 			modalScaleText.setText(modalScaleName.charAt(0).toUpperCase() + modalScaleName.slice(1));
 		});
 
-		nextScale = this.add.text(resolution[0]/2+settingsOffset,resolution[1]/1.44, ">",  { font: "bold 22px Arial", fill: "#003366"}).setOrigin(0.5);
+		nextScale = this.add.text(resolution[0]/2+settingsOffset,resolution[1]/1.44, ">",  { font: "bold 22px Arial", fill: "#6C584C"}).setOrigin(0.5);
 		nextScale.setAngle(90);
 		nextScale.setPadding(6, 10, 6, 10);
 		nextScale.setInteractive();
@@ -414,70 +414,57 @@ var settingsScene = {
 			modalScaleText.setText(modalScaleName.charAt(0).toUpperCase() + modalScaleName.slice(1));
 		});
 
-		gameModalityProgressive = this.add.text(resolution[0]/2+settingsOffset+160,resolution[1]/1.6, "Progressive",  { font: "bold 22px Arial", fill: "#003366"}).setOrigin(0.5);
+		gameModalityProgressive = this.add.text(resolution[0]/2+settingsOffset+160,resolution[1]/1.6, "Progressive",  { font: "bold 22px Arial", fill: "#F0EAD2"}).setOrigin(0.5);
 		if(gameModality == GAME_MODE.STATIC) {
-			gameModalityProgressive.setBackgroundColor("rgba(160, 167, 240, 0.5)");
-			gameModalityProgressive.setFill("#003366");
+			gameModalityProgressive.setBackgroundColor("#DDE5B6");
+			gameModalityProgressive.setFill("#A98467");
 		}
 		else {
-			gameModalityProgressive.setBackgroundColor("rgba(0, 119, 255, 0.5)");
-			gameModalityProgressive.setFill("#FFFFFF");
+			gameModalityProgressive.setBackgroundColor("#ADC178");
+			gameModalityProgressive.setFill("#F0EAD2");
 		}
 		gameModalityProgressive.setPadding(10, 10, 10, 10);
 		gameModalityProgressive.setInteractive();
 		gameModalityProgressive.on('pointerdown', function() {
-			gameModalityProgressive.setBackgroundColor("rgba(0, 106, 255, 0.5)");
-			gameModalityProgressive.setFill("#FFFFFF");
+			gameModalityProgressive.setBackgroundColor("#ADC178");
+			gameModalityProgressive.setFill("#F0EAD2");
 			gameModality = GAME_MODE.PROGRESSIVE;
 
-			gameModalityStatic.setBackgroundColor("rgba(160, 219, 240, 0.5)");
-			gameModalityStatic.setFill("#003366");
+			gameModalityStatic.setBackgroundColor("#DDE5B6");
+			gameModalityStatic.setFill("#A98467");
 		});
 
-		gameModalityStatic = this.add.text(resolution[0]/2+settingsOffset-160,resolution[1]/1.6, "Static",  { font: "bold 22px Arial", fill: "#003366"}).setOrigin(0.5);
+		gameModalityStatic = this.add.text(resolution[0]/2+settingsOffset-160,resolution[1]/1.6, "Static",  { font: "bold 22px Arial", fill: "#F0EAD2"}).setOrigin(0.5);
 		if(gameModality == GAME_MODE.PROGRESSIVE) {
-			gameModalityStatic.setBackgroundColor("rgba(160, 240, 196, 0.5)");
-			gameModalityStatic.setFill("#003366");
+			gameModalityStatic.setBackgroundColor("#DDE5B6");
+			gameModalityStatic.setFill("#A98467");
 		}
 		else {
-			gameModalityStatic.setBackgroundColor("rgba(18, 168, 48, 0.5)");
-			gameModalityStatic.setFill("#FFFFFF");
+			gameModalityStatic.setBackgroundColor("#ADC178");
+			gameModalityStatic.setFill("#F0EAD2");
 		}
 		gameModalityStatic.setPadding(10+(gameModalityProgressive.width-20-gameModalityStatic.width)/2, 10, 10+(gameModalityProgressive.width-20-gameModalityStatic.width)/2, 10);
 		gameModalityStatic.setInteractive();
 		gameModalityStatic.on('pointerdown', function() {
-			gameModalityStatic.setBackgroundColor("rgba(0, 119, 255, 0.5)");
-			gameModalityStatic.setFill("#FFFFFF");
+			gameModalityStatic.setBackgroundColor("#ADC178");
+			gameModalityStatic.setFill("#F0EAD2");
 			gameModality = GAME_MODE.STATIC;
 
-			gameModalityProgressive.setBackgroundColor("rgba(160, 216, 240, 0.5)");
-			gameModalityProgressive.setFill("#003366");
+			gameModalityProgressive.setBackgroundColor("#DDE5B6");
+			gameModalityProgressive.setFill("#A98467");
 		});
 
-		//Start Game button
-		//------------------------------------------------------------------------------------------------------
-		/*startGame = this.add.text(resolution[0]/2+settingsOffset,resolution[1]/1.2, "Empezar partida",  { font: "bold 80px Arial", fill: "#003366"}).setOrigin(0.5);
-		startGame.setPadding(15, 15, 15, 15);
-		startGame.setShadow(2, 2, 'rgba(0,0,0,0.5)', 2);
-		startGame.setInteractive();
-		startGame.on('pointerdown', function() {
-			// game.anims.anims.clear() //Remove player animations before restarting the game
-			// game.textures.remove("grid-texture"); //Remove canvas texture before restarting the game
-			// game.scene.start("playScene");
-			// game.scene.stop("settingsScene");
-			askForStartGame = true;
-		});*/
 		let offset = 300;
-		startGame = this.add.text(resolution[0]/2-offset,resolution[1]/1.2, "Un Jugador",  { font: "bold 50px Arial", fill: "#003366"}).setOrigin(0.5);
+		startGame = this.add.text(resolution[0]/2-offset,resolution[1]/1.2, "Single Player",  { font: "bold 50px Arial", fill: "#A98467"}).setOrigin(0.5);
 		startGame.setPadding(15, 15, 15, 15);
-		startGame.setShadow(2, 2, 'rgba(0,0,0,0.5)', 2);
+		startGame.setShadow(2, 2, '#F0EAD2', 2);
 		startGame.setInteractive();
 		startGame.on('pointerdown', function() {
 			askForStartGame = true;
 		});
-		startGame = this.add.text(resolution[0]/2+offset,resolution[1]/1.2, "Multijugador",  { font: "bold 50px Arial", fill: "#003366"}).setOrigin(0.5);
+		startGame = this.add.text(resolution[0]/2+offset,resolution[1]/1.2, "Multiplayer",  { font: "bold 50px Arial", fill: "#A98467"}).setOrigin(0.5);
 		startGame.setPadding(15, 15, 15, 15);
-		startGame.setShadow(2, 2, 'rgba(0,0,0,0.5)', 2);
+		startGame.setShadow(2, 2, '#F0EAD2', 2);
 		startGame.setInteractive();
 		startGame.on('pointerdown', function() {
 			game.scene.start("multiplayerScene");
@@ -530,127 +517,150 @@ function generateRoomCode() {
 
 var multiplayerScene = {
     preload: function () {
-        // Cargar recursos necesarios para la escena de multijugador
-        this.load.image('background', 'assets/background.jpg'); // Cargar una imagen de fondo si es necesario
+        // Load necessary resources for the multiplayer scene
+        // this.load.image('background', 'assets/background.jpg'); // Load a background image if needed
     },
     create: function () {
-        // Fondo de la escena
-        this.add.image(resolution[0] / 2, resolution[1] / 2, 'background').setDisplaySize(resolution[0], resolution[1]);
-        // Título de la escena
+        this.cameras.main.setBackgroundColor("#F0EAD2");
+        
+        // Scene Title
         this.add.text(resolution[0] / 2, resolution[1] / 4, "MusicNet", 
-            { font: "bold 48px Arial", fill: "#003366", align: "center" })
+            { font: "bold 48px Arial", fill: "#A98467", align: "center" })
             .setOrigin(0.5);
 
-        // Botón "Crear Sala"
-        this.add.text(resolution[0] / 2 - 150, resolution[1] / 2, "Crear Sala",  
-            { font: "bold 26px Arial", fill: "#FFFFFF", backgroundColor: "rgba(151, 151, 246, 0.7)" })
+        // "Create Room" Button
+        this.add.text(resolution[0] / 2 - 150, resolution[1] / 2, "Create Room",  
+            { font: "bold 26px Arial", fill: "#F0EAD2", backgroundColor: "#A98467" })
             .setOrigin(0.5)
-            .setPadding(20, 10, 20, 10) // Ajustar el padding para que el botón sea más grande
+            .setPadding(20, 10, 20, 10) // Adjust padding to make the button bigger
             .setInteractive()
             .on('pointerdown', function () {
                 const roomCode = generateRoomCode(); 
-                game.scene.start("createRoomScene", { roomCode: roomCode }); // Ir a la escena de creación de sala
+                game.scene.start("createRoomScene", { roomCode: roomCode }); // Go to the create room scene
             });
 
-        // Botón "Unirse a una sala"
-        this.add.text(resolution[0] / 2 + 150, resolution[1] / 2, "Unirse a una sala",  
-            { font: "bold 26px Arial", fill: "#FFFFFF", backgroundColor: "rgba(84, 176, 241, 0.7)" })
+        // "Join Room" Button
+        this.add.text(resolution[0] / 2 + 150, resolution[1] / 2, "Join Room",  
+            { font: "bold 26px Arial", fill: "#F0EAD2", backgroundColor: "#ADC178" })
             .setOrigin(0.5)
-            .setPadding(20, 10, 20, 10) // Ajustar el padding para que el botón sea más grande
+            .setPadding(20, 10, 20, 10) // Adjust padding to make the button bigger
             .setInteractive()
             .on('pointerdown', function () {
-                game.scene.start("joinRoomScene"); // Ir a la escena de unirse a una sala
+                game.scene.start("joinRoomScene"); // Go to the join room scene
             });
-		// Botón "Regresar"
-		this.add.text(20, 20, "← Regresar",  
-    		{ font: "bold 22px Arial", fill: "#FFFFFF", backgroundColor: "rgba(0, 107, 200, 0.7)" })
-   		 .setPadding(10, 5, 10, 5)
-   		 .setInteractive()
-   		 .on('pointerdown', function () {
-   		     	game.scene.stop("multiplayerScene"); // Detiene la escena actual
-    		    game.scene.start("settingsScene"); // Regresa a la escena principal
-    		});
 
+        // "Back" Button
+        this.add.text(20, 20, "← Back",  
+            { font: "bold 22px Arial", fill: "#F0EAD2", backgroundColor: "#A98467" })
+            .setPadding(10, 5, 10, 5)
+            .setInteractive()
+            .on('pointerdown', function () {
+                game.scene.stop("multiplayerScene"); // Stop the current scene
+                game.scene.start("settingsScene"); // Return to the main scene
+            });
     }
 };
 game.scene.add("multiplayerScene", multiplayerScene);
+
 var createRoomScene = {
     preload: function () {
-        // Cargar recursos necesarios para la escena de multijugador
-        this.load.image('background', 'assets/background.jpg'); // Cargar una imagen de fondo si es necesario
+        // No need to load a background image
     },
     create: function (data) {
-		if(!data||!data.roomCode){
-			console.error("No se ha proporcionado un código de sala");
-			return;
-		}
-        const roomCode = data.roomCode; // Código generado en la escena anterior
+        if (!data || !data.roomCode) {
+            console.error("No room code provided");
+            return;
+        }
+        const roomCode = data.roomCode; // Code generated in the previous scene
 
-		// Fondo de la escena
-        this.add.image(resolution[0] / 2, resolution[1] / 2, 'background').setDisplaySize(resolution[0], resolution[1]);
-        
-        // Título de la escena
-        this.add.text(resolution[0] / 2, resolution[1] / 4, "Sala Creada", 
-            { font: "bold 48px Arial", fill: "#0b0b0b", align: "center" })
+        // Set solid background color
+        this.cameras.main.setBackgroundColor("#F0EAD2");
+
+        // Scene title
+        this.add.text(resolution[0] / 2, resolution[1] / 4, "Room Created", 
+            { font: "bold 48px Arial", fill: "#6C584C", align: "center" })
             .setOrigin(0.5);
 
-        // Mostrar el código de la sala
-        this.add.text(resolution[0] / 2, resolution[1] / 2, `Código: ${roomCode}`, 
-            { font: "bold 32px Arial", fill: "#0b0b0b", align: "center" })
+        // Display the room code
+        this.add.text(resolution[0] / 2, resolution[1] / 2, `Code: ${roomCode}`, 
+            { font: "bold 32px Arial", fill: "#A98467", align: "center" })
             .setOrigin(0.5);
-		// Botón "Regresar"
-		this.add.text(20, 20, "← Regresar",  
-    		{ font: "bold 22px Arial", fill: "#FFFFFF", backgroundColor: "rgba(0, 107, 200, 0.7)" })
-   		 .setPadding(10, 5, 10, 5)
-   		 .setInteractive()
-   		 .on('pointerdown', function () {
-   		     	game.scene.stop("createRoomScene"); // Detiene la escena actual
-    		    game.scene.start("settingsScene"); // Regresa a la escena principal
-    		});
+		
+        // Waiting message
+        this.add.text(resolution[0] / 2, resolution[1] / 2 + 50, 
+            "Room created, waiting for other players...", 
+            { font: "bold 24px Arial", fill: "#6C584C", align: "center" })
+            .setOrigin(0.5);
+
+        // "Back" button
+        let backButton = this.add.text(20, 20, "← Back",  
+            { font: "bold 22px Arial", fill: "#F0EAD2", backgroundColor: "#ADC178" })
+            .setPadding(10, 5, 10, 5)
+            .setInteractive()
+            .on('pointerdown', function () {
+                game.scene.stop("createRoomScene"); // Stop the current scene
+                game.scene.start("settingsScene"); // Return to the main scene
+            });
+
+        // Ensure the text is above the background
+        backButton.setDepth(1);
     }
 };
 game.scene.add("createRoomScene", createRoomScene);
 
 var joinRoomScene = {
-    preload: function () {
-        // Cargar recursos necesarios para la escena de multijugador
-        this.load.image('background', 'assets/background.jpg'); // Cargar una imagen de fondo si es necesario
-    },
+    roomCode: "", // Variable to store the entered code
+
+    preload: function () {},
+
     create: function () {
-        // Fondo de la escena
-        this.add.image(resolution[0] / 2, resolution[1] / 2, 'background').setDisplaySize(resolution[0], resolution[1]);
-        // Título de la escena
-		// Botón "Regresar"
-		this.add.text(20, 20, "← Regresar",  
-    		{ font: "bold 22px Arial", fill: "#FFFFFF", backgroundColor: "rgba(0, 107, 200, 0.7)" })
-   		 .setPadding(10, 5, 10, 5)
-   		 .setInteractive()
-   		 .on('pointerdown', function () {
-   		     	game.scene.stop("joinRoomScene"); // Detiene la escena actual
-    		    game.scene.start("settingsScene"); // Regresa a la escena principal
-    		});
-        this.add.text(resolution[0] / 2, resolution[1] / 4, "Unirse a una Sala", 
-            { font: "bold 48px Arial", fill: "#0b0b0b", align: "center" })
-            .setOrigin(0.5);
+        this.cameras.main.setBackgroundColor("#F0EAD2");
 
-        // Campo de entrada para el código de la sala
-        const roomCodeInput = this.add.dom(resolution[0] / 2, resolution[1] / 2, 'input', 
-            { type: 'text', placeholder: 'Ingresa el código de la sala', fontSize: '24px', width: '300px', height: '40px' })
-            .setOrigin(0.5);
-
-        // Botón "Unirse"
-        this.add.text(resolution[0] / 2, resolution[1] / 2 + 80, "Unirse",  
-            { font: "bold 22px Arial", fill: "#0b0b0b", backgroundColor: "rgba(84, 176, 241, 0.7)" })
-            .setOrigin(0.5)
-            .setPadding(10, 5, 10, 5) // Padding más pequeño
-            .setInteractive({ useHandCursor: true }) // Cambiar el cursor al pasar el mouse
-            .on('pointerdown', () => {
-                const roomCode = roomCodeInput.node.value;
-                if (roomCode) {
-                    startWebRTCClient(roomCode); // Iniciar la conexión WebRTC como cliente
-                }
+        // "Back" button
+        let backButton = this.add.text(20, 20, "← Back",  
+            { font: "bold 22px Arial", fill: "#F0EAD2", backgroundColor: "#ADC178" })
+            .setPadding(10, 5, 10, 5)
+            .setInteractive()
+            .on('pointerdown', function () {
+                game.scene.stop("joinRoomScene");
+                game.scene.start("settingsScene");
             });
-		
+        backButton.setDepth(1);
+
+        // Scene title
+        this.add.text(window.innerWidth / 2, window.innerHeight / 4, "Join a Room", 
+            { font: "bold 48px Arial", fill: "#6C584C", align: "center" })
+            .setOrigin(0.5);
+
+        // Text field to display the entered code
+        this.roomCodeText = this.add.text(window.innerWidth / 2, window.innerHeight / 2, "____________",  
+            { font: "bold 32px Arial", fill: "#6C584C", backgroundColor: "#FFFFFF", padding: 10 })
+            .setOrigin(0.5);
+
+        // Capture keyboard events
+        this.input.keyboard.on('keydown', (event) => {
+            if (event.key === "Backspace") {
+                this.roomCode = this.roomCode.slice(0, -1);
+            } else if (event.key === "Enter") {
+                startWebRTCClient(this.roomCode);
+            } else if (event.key.length === 1 && this.roomCode.length < 6) { 
+                this.roomCode += event.key.toUpperCase();
+            }
+            this.roomCodeText.setText(this.roomCode || "____________");
+        });
+
+        // "Join" button
+        this.add.text(window.innerWidth / 2, window.innerHeight / 2 + 80, "Join",  
+            { font: "bold 22px Arial", fill: "#6C584C", backgroundColor: "#DDE5B6" })
+            .setOrigin(0.5)
+            .setPadding(10, 5, 10, 5) 
+            .setInteractive({ useHandCursor: true })
+            .on('pointerdown', () => {
+                if (this.roomCode) {
+                    startWebRTCClient(this.roomCode);
+                }
+            })
+            .setDepth(2);
     }
 };
 game.scene.add("joinRoomScene", joinRoomScene);
@@ -802,11 +812,18 @@ var playScene = {
 
 		//SCORE
 		//------------------------------------------------------------------------------------------------------
-		scoreText = this.add.text(16, 16, 'score: '+score, { fontSize: fontSize+'px', fill: fontColor, fontFamily: "Arial" });
+		scoreText = this.add.text(16, 16, 'Score: '+score, { fontSize: fontSize+'px', fill: fontColor, fontFamily: "Arial" });
+
+		// Tiempo transcurrido en segundos
+		this.startTime = this.time.now / 1000;
+
+		// Texto del cronómetro
+		this.timeText = this.add.text(200, 16, 'Time: 0s', { fontSize: fontSize + 'px', fill: fontColor, fontFamily: "Arial" });
+
 
 		//Change Reference Button
 		referenceNoteButton = this.add.text(resolution[0], playerHeight*2.2, 'Play Reference', { fontSize: fontSize+'px', fill: fontColor, fontFamily: "Arial" });
-		referenceNoteButton.setBackgroundColor("rgba(160, 193, 240, 0.5)");
+		referenceNoteButton.setBackgroundColor("#F0EAD2");
 		referenceNoteButton.setPadding(8, 8, 8, 8);
 		referenceNoteButton.setX(resolution[0]-referenceNoteButton.width-10);
 		referenceNoteButton.setY(referenceNoteButton.y-10);
@@ -834,16 +851,16 @@ var playScene = {
 		//INTRO MANAGER
 		//------------------------------------------------------------------------------------------------------
 		statusText = this.add.text(resolution[0]/2, playerHeight*3/2, 'Space/Enter To Play!', {font: "bold 40px Arial", fill: fontColor}).setOrigin(0.5);
-		statusText.setShadow(2, 2, 'rgba(0,0,0,0.5)', 2);
+		statusText.setShadow(2, 2, '#F0EAD2', 2);
 		statusText.setAlign('center');
 		tween = gameContext.add.tween({ targets: statusText, ease: 'Sine.easeInOut', duration: 300, delay: 0, alpha: { getStart: () => 0, getEnd: () => 1 } });
 
 		statusTextSmall = this.add.text(resolution[0]/2, playerHeight*2, '', {font: "bold 25px Arial", fill: fontColor}).setOrigin(0.5);
-		statusTextSmall.setShadow(2, 2, 'rgba(0,0,0,0.5)', 2);
+		statusTextSmall.setShadow(2, 2, '#F0EAD2', 2);
 		statusTextSmall.setAlign('center');
 
 		centeredText = this.add.text(resolution[0]/2, resolution[1]/2, '', {font: "bold 190px Arial", fill: fontColor}).setOrigin(0.5);
-		centeredText.setShadow(5, 5, 'rgba(0,0,0,0.5)', 5);
+		centeredText.setShadow(5, 5, '#F0EAD2', 5);
 		centeredText.setAlign('center');
 
 		// PLAY - SETTINGS BUTTONS
@@ -869,6 +886,14 @@ var playScene = {
 	},
 
 	update: function() {
+		let elapsedTime = Math.floor((this.time.now / 1000) - this.startTime);
+ 	 	let minutes = Math.floor(elapsedTime / 60);
+ 	 	let seconds = elapsedTime % 60;
+
+  	  	// Formatear con ceros a la izquierda
+ 	  	let formattedTime = (minutes < 10 ? '0' : '') + minutes + ":" + (seconds < 10 ? '0' : '') + seconds;
+
+ 	  	this.timeText.setText('Time: ' + formattedTime);
 		if(game.scene.isActive("playScene")){
 			//GRID MANAGER
 			//------------------------------------------------------------------------------------------------------
@@ -1188,7 +1213,7 @@ var pauseScene = {
 		//Change Reference Button
 		referenceNoteButton.destroy();
 		referenceNoteButton = this.add.text(resolution[0], playerHeight*2.2, 'Play Reference', { fontSize: fontSize+'px', fill: fontColor, fontFamily: "Arial" });
-		referenceNoteButton.setBackgroundColor("rgba(160, 193, 240, 0.5)");
+		referenceNoteButton.setBackgroundColor("#F0EAD2");
 		referenceNoteButton.setPadding(8, 8, 8, 8);
 		referenceNoteButton.setX(resolution[0]-referenceNoteButton.width-10);
 		referenceNoteButton.setY(referenceNoteButton.y-10);
@@ -1237,7 +1262,7 @@ var gameoverScene = {
 
 
 		gameoverText = this.add.text(resolution[0]/2, resolution[1]/2, 'Game Over! \nEnter/Space to restart', {font: "bold 70px Arial", fill: fontColor}).setOrigin(0.5);
-		gameoverText.setShadow(5, 5, 'rgba(0,0,0,0.5)', 5);
+		gameoverText.setShadow(5, 5, 'rgba(250, 249, 243, 0.5)', 5);
 		gameoverText.setAlign('center');
 
 		gameoverText.setAlpha(0);
@@ -1277,7 +1302,7 @@ var gameoverScene = {
 		//Reference Button
 		referenceNoteButton.destroy();
 		referenceNoteButton = this.add.text(resolution[0], playerHeight*2.2, 'Play Reference', { fontSize: fontSize+'px', fill: fontColor, fontFamily: "Arial" });
-		referenceNoteButton.setBackgroundColor("rgba(160, 215, 240, 0.5)");
+		referenceNoteButton.setBackgroundColor("#F0EAD2");
 		referenceNoteButton.setPadding(8, 8, 8, 8);
 		referenceNoteButton.setX(resolution[0]-referenceNoteButton.width-10);
 		referenceNoteButton.setY(referenceNoteButton.y-10);
@@ -1315,7 +1340,7 @@ game.scene.add("gameoverScene", gameoverScene);
 
 function createPlatformTexture(context, width, height, levelDuration, color= platformColor) {
 	graphics=context.add.graphics();
-	graphics.fillStyle(color,1);
+	graphics.fillStyle('#8B4513', 1);
 	graphics.fillRect(0,0,width-spaceBetweenPlatforms,height); //width-1 to see the division between two platforms at the same level
 	graphics.generateTexture('platform'+levelDuration+height, width, height);
 	graphics.destroy();
@@ -1570,7 +1595,7 @@ function manageStatus() {
 			  });
 
 				referenceNoteButton = gameContext.add.text(resolution[0]-150, playerHeight*2.2, 'Play Reference', { fontSize: fontSize+'px', fill: fontColor, fontFamily: "Arial" });
-				referenceNoteButton.setBackgroundColor("rgba(160, 195, 240, 0.5)");
+				referenceNoteButton.setBackgroundColor("#F0EAD2");
 				referenceNoteButton.setPadding(8, 8, 8, 8);
 				referenceNoteButton.setX(resolution[0]-referenceNoteButton.width-10);
 				referenceNoteButton.setY(referenceNoteButton.y-10);
@@ -1629,7 +1654,7 @@ function manageStatus() {
 
 				//Reload play reference button
 				referenceNoteButton = gameContext.add.text(resolution[0]-150, playerHeight*2.2, 'Play Reference', { fontSize: fontSize+'px', fill: fontColor, fontFamily: "Arial" });
-				referenceNoteButton.setBackgroundColor("rgba(160, 205, 240, 0.5)");
+				referenceNoteButton.setBackgroundColor("#F0EAD2");
 				referenceNoteButton.setPadding(8, 8, 8, 8);
 				referenceNoteButton.setX(resolution[0]-referenceNoteButton.width-10);
 				referenceNoteButton.setY(referenceNoteButton.y-10);

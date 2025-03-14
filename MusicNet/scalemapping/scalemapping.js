@@ -24,12 +24,12 @@ for(i=0; i<tones.length; i++){
 // --------------------------------------------------------------------------
 
 // intervals colors
-fundamental = "0xff6b63"; //red
-majorThird = "0xffc2bf";  //pink
-perfectFifth = "0xff9993";  //light-red
-augFourth = "0xebff96"; //yellow
-majorInt = "0xffffff";  //majorIntC
-minorInt = "0x999cff";  //blue
+fundamental = "0xBA6F5A"; 
+majorThird = "0xE8B4A0";  
+perfectFifth = "0xD9A066";  
+augFourth = "0xE6C87D"; 
+majorInt = "0xF4E3C1";  
+minorInt = "0x91A8A4";
 
 //ternary mapping
 /*
