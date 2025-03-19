@@ -622,67 +622,85 @@ var createRoomScene = {
 game.scene.add("createRoomScene", createRoomScene);
 
 var joinRoomScene = {
-	roomCode: "", //Variable to store the entered code
-	preload: function() {},
+    roomCode: "", // Variable para almacenar el código ingresado
 
-	create: function () {
-		this.cameras.main.setBackgroundColor("#F0EAD2"); // Background color
-		//"Back" button
-		let backButton = this.add.text(20, 20, "← Back",
-			{ font: "bold 22px Arial", fill: "#F0EAD2", backgroundColor: "#ADC178" })
-			.setPadding(10, 5, 10, 5)
-			.setInteractive()
-			.on('pointerdown', function () {
-				game.scene.stop("joinRoomScene"); // Stop the current scene
-				game.scene.start("multiplayerScene"); // Return to the multiplayer scene
-			});
-		backButton.setDepth(1); // Ensure the text is above the background
+    preload: function () {},
 
-		// Scene title
-		this.add.text(window.innerWidth / 2, window.innerHeight / 4, "Join Room",
-			{ font: "bold 48px Arial", fill: "#6C584C", align: "center" })
-			.setOrigin(0.5);
+    create: function () {
+        this.cameras.main.setBackgroundColor("#F0EAD2"); // Color de fondo
 
-		// Text field to display the room code
-		this.roomCodeText = this.add.text( window.innerWidth / 2, window.innerHeight / 2, "_______________",{
-			font: "bold 32px Arial", fill: "#6c584c", backgroundColor: "#FFFFFF", padding: 10})
-			.setOrigin(0.5);		
-		
-		//Capture keyboard events
-		this.input.keyboard.on('keydown', (event) =>{
-			if(event.key == "Backspace"){
-				this.roomCode = this.roomCode.slice(0, -1);
-			} else if (event.key.length === 1 && this.roomCode.length < 6){
-				this.roomCode += event.key.toUpperCase();
-			}else if (event.keyv === "Enter"){
-				this.joinRoom(this.roomCode);
-			}
-			this.roomCodeText.setText(this.roomCode) || "_______________";
-		});
+        // Botón "Regresar"
+        let backButton = this.add.text(20, 20, "← Back",
+            { font: "bold 22px Arial", fill: "#F0EAD2", backgroundColor: "#ADC178" })
+            .setPadding(10, 5, 10, 5)
+            .setInteractive()
+            .on('pointerdown', () => { // Función de flecha para conservar el contexto de "this"
+                game.scene.stop("joinRoomScene"); // Detener la escena actual
+                game.scene.start("multiplayerScene"); // Regresar a la escena multijugador
+            });
+        backButton.setDepth(1); // Asegurar que el texto esté sobre el fondo
 
-		// "Join" button
-		this.add.text(window.innerWidth / 2, window.innerHeight / 2+80, "Join",
-			{font: "bold 26px Arial", fill: "#6C584C", backgroundColor: "#DDE5B6"})
-			.setOrigin(0.5)
-			.setPadding(10, 5, 10, 5)
-			.setInteractive({useHandCursor: true})
-			.on('pointerdown', () => {
-				this.joinRoom(this.roomCode);
-			})
-			.setDepth(2); // Ensure the text is above the background
-	},
+        // Título de la escena
+        this.add.text(window.innerWidth / 2, window.innerHeight / 4, "Join Room",
+            { font: "bold 48px Arial", fill: "#6C584C", align: "center" })
+            .setOrigin(0.5);
 
-	joinRoom: function (roomCode) {
-		const peerConnection = initializeWebRTC(roomCode, () => {
-			const dataChannel = setupDataChannel(peerConnection, this.handleMessage);
-			this.dataChannel = dataChannel;
-			console.log(" WebRTC connection and data channel are ready");
-		});
-	},
+        // Inicializar `roomCode`
+        this.roomCode = "";
 
-	handleMessage: function (message) {
-		console.log("Message in scene:", message);
-	}
+        // Campo de texto para mostrar el código de la sala
+        this.roomCodeText = this.add.text(window.innerWidth / 2, window.innerHeight / 2, "_______________",
+            { font: "bold 32px Arial", fill: "#6C584C", backgroundColor: "#FFFFFF", padding: 10 })
+            .setOrigin(0.5);
+
+        // Capturar eventos del teclado
+        this.input.keyboard.on('keydown', (event) => {
+            if (typeof this.roomCode !== "string") {
+                this.roomCode = ""; // Asegurar que no sea undefined
+            }
+
+            if (event.key === "Backspace") {
+                this.roomCode = this.roomCode.slice(0, -1);
+            } else if (event.key.length === 1 && this.roomCode.length < 6) {
+                this.roomCode += event.key.toUpperCase();
+            } else if (event.key === "Enter") { 
+                this.joinRoom(this.roomCode);
+            }
+
+            // Actualizar el texto con el código ingresado
+            this.roomCodeText.setText(this.roomCode.length > 0 ? this.roomCode : "_______________");
+        });
+
+        // Botón "Join"
+        this.add.text(window.innerWidth / 2, window.innerHeight / 2 + 80, "Join",
+            { font: "bold 26px Arial", fill: "#6C584C", backgroundColor: "#DDE5B6" })
+            .setOrigin(0.5)
+            .setPadding(10, 5, 10, 5)
+            .setInteractive({ useHandCursor: true })
+            .on('pointerdown', () => {
+                this.joinRoom(this.roomCode);
+            })
+            .setDepth(2); // Asegurar que el texto esté sobre el fondo
+    },
+
+    joinRoom: function (roomCode) {
+        if (!roomCode || roomCode.length < 6) {
+            console.error("Invalid room code");
+            return;
+        }
+
+        console.log("Attempting to join room:", roomCode);
+
+        const peerConnection = initializeWebRTC(roomCode, () => {
+            const dataChannel = setupDataChannel(peerConnection, this.handleMessage.bind(this));
+            this.dataChannel = dataChannel;
+            console.log("WebRTC connection and data channel are ready");
+        });
+    },
+
+    handleMessage: function (message) {
+        console.log("Message in scene:", message);
+    }
 };
 game.scene.add("joinRoomScene", joinRoomScene);
 
