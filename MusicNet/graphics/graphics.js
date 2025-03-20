@@ -356,10 +356,21 @@ var settingsScene = {
 			}
 		});
 
-		playOctaveButton = this.add.text(resolution[0] / 2 + settingsOffset + 100, resolution[1] / 3.6, "Play Octave", { font: "bold 22px Arial", fill: "#F0EAD2" }).setOrigin(0.5);
-		playOctaveButton.setBackgroundColor("#A98467");
-		playOctaveButton.setFill("#F0EAD2");
-		playOctaveButton.setPadding(10, 10, 10, 10);
+		let buttonGraphics = this.add.graphics();
+		buttonGraphics.fillStyle(0xA98467, 1);
+		buttonGraphics.fillRoundedRect(-75, -20, 150, 40, 10);
+		let playOctaveButton = this.add.container(
+			resolution[0] / 2 + settingsOffset + 100,
+			resolution[1] / 3.6
+		);
+		playOctaveButton.add(buttonGraphics);
+
+		let buttonText = this.add.text(0, 0, "Play Octave", {
+			font: "bold 22px Arial",
+			fill: "#F0EAD2"
+		}).setOrigin(0.5);
+		playOctaveButton.add(buttonText);
+		playOctaveButton.setSize(150, 40);
 		playOctaveButton.setInteractive();
 		playOctaveButton.on('pointerdown', function () {
 			playNote(firstNote, 1.5);
@@ -369,7 +380,6 @@ var settingsScene = {
 				else
 					playNote(firstNote.substring(0, 1) + (parseInt(firstNote.substring(1, 2)) + 1), 1.5);
 			}, 600);
-
 		});
 
 		//Game Modality
@@ -377,11 +387,34 @@ var settingsScene = {
 		gameModalityTextDesc = this.add.text(resolution[0] / 2 + settingsOffset, resolution[1] / 2.2, "______________________________________\nGame Modality & Modal Scale", { font: "bold 22px Arial", fill: "#6C584C" }).setOrigin(0.5);
 		gameModalityTextDesc.setAlign('center');
 
-		startGameLevel = scales.indexOf(modalScaleName);
-		modalScaleText = this.add.text(resolution[0] / 2 + settingsOffset, resolution[1] / 1.6, "", { font: "bold 22px Arial", fill: "#F0EAD2" }).setOrigin(0.5);
-		modalScaleText.setText(modalScaleName.charAt(0).toUpperCase() + modalScaleName.slice(1));
-		modalScaleText.setBackgroundColor("#A98467");
-		modalScaleText.setPadding(13, 13, 13, 13);
+		function createMiddleButton(scene, x, y, text, bgColor, textColor) {
+			let buttonGraphics = scene.add.graphics();
+			buttonGraphics.fillStyle(bgColor, 1);
+			buttonGraphics.fillRoundedRect(-75, -20, 150, 40, 10);
+			let buttonContainer = scene.add.container(x, y);
+			buttonContainer.add(buttonGraphics);
+			let buttonText = scene.add.text(0, 0, text, {
+				font: "bold 22px Arial",
+				fill: Phaser.Display.Color.RGBToString(
+					textColor >> 16,
+					(textColor >> 8) & 0xff,
+					textColor & 0xff
+				)
+			}).setOrigin(0.5);
+			buttonContainer.add(buttonText);
+
+			return { container: buttonContainer, text: buttonText, graphics: buttonGraphics };
+		}
+
+		let modalScaleButton = createMiddleButton(this, resolution[0] / 2 + settingsOffset, resolution[1] / 1.6,
+			modalScaleName.charAt(0).toUpperCase() + modalScaleName.slice(1), 0xA98467, 0xF0EAD2);
+
+		function updateModalScaleButton() {
+			modalScaleButton.text.setText(modalScaleName.charAt(0).toUpperCase() + modalScaleName.slice(1));
+			modalScaleButton.graphics.clear();
+			modalScaleButton.graphics.fillStyle(0xA98467, 1);
+			modalScaleButton.graphics.fillRoundedRect(-75, -20, 150, 40, 10);
+		}
 
 		prevScale = this.add.text(resolution[0] / 2 + settingsOffset, resolution[1] / 1.8, ">", { font: "bold 22px Arial", fill: "#6C584C" }).setOrigin(0.5);
 		prevScale.setAngle(-90);
@@ -394,6 +427,7 @@ var settingsScene = {
 				startGameLevel--;
 			modalScaleName = scales[startGameLevel];
 			changeScaleReference(modalScaleName);
+			updateModalScaleButton();
 			modalScaleText.setText(modalScaleName.charAt(0).toUpperCase() + modalScaleName.slice(1));
 		});
 
@@ -408,69 +442,115 @@ var settingsScene = {
 				startGameLevel++;
 			modalScaleName = scales[startGameLevel];
 			changeScaleReference(modalScaleName);
+			updateModalScaleButton();
 			modalScaleText.setText(modalScaleName.charAt(0).toUpperCase() + modalScaleName.slice(1));
 		});
 
-		gameModalityProgressive = this.add.text(resolution[0] / 2 + settingsOffset + 160, resolution[1] / 1.6, "Progressive", { font: "bold 22px Arial", fill: "#F0EAD2" }).setOrigin(0.5);
-		if (gameModality == GAME_MODE.STATIC) {
-			gameModalityProgressive.setBackgroundColor("#DDE5B6");
-			gameModalityProgressive.setFill("#A98467");
-		}
-		else {
-			gameModalityProgressive.setBackgroundColor("#ADC178");
-			gameModalityProgressive.setFill("#F0EAD2");
-		}
-		gameModalityProgressive.setPadding(10, 10, 10, 10);
-		gameModalityProgressive.setInteractive();
-		gameModalityProgressive.on('pointerdown', function () {
-			gameModalityProgressive.setBackgroundColor("#ADC178");
-			gameModalityProgressive.setFill("#F0EAD2");
-			gameModality = GAME_MODE.PROGRESSIVE;
+		function createButton(scene, x, y, text, bgColor, textColor, callback) {
+			let buttonGraphics = scene.add.graphics();
+			buttonGraphics.fillStyle(bgColor, 1);
+			buttonGraphics.fillRoundedRect(-75, -20, 150, 40, 10);
+			let buttonContainer = scene.add.container(x, y);
+			buttonContainer.add(buttonGraphics);
+			let buttonText = scene.add.text(0, 0, text, {
+				font: "bold 22px Arial",
+				fill: Phaser.Display.Color.RGBToString(
+					textColor >> 16,
+					(textColor >> 8) & 0xff,
+					textColor & 0xff
+				)
+			}).setOrigin(0.5);
+			buttonContainer.add(buttonText);
+			buttonContainer.setSize(150, 40);
+			buttonContainer.setInteractive();
+			buttonContainer.on('pointerdown', callback);
 
-			gameModalityStatic.setBackgroundColor("#DDE5B6");
-			gameModalityStatic.setFill("#A98467");
-		});
-
-		gameModalityStatic = this.add.text(resolution[0] / 2 + settingsOffset - 160, resolution[1] / 1.6, "Static", { font: "bold 22px Arial", fill: "#F0EAD2" }).setOrigin(0.5);
-		if (gameModality == GAME_MODE.PROGRESSIVE) {
-			gameModalityStatic.setBackgroundColor("#DDE5B6");
-			gameModalityStatic.setFill("#A98467");
+			return buttonContainer;
 		}
-		else {
-			gameModalityStatic.setBackgroundColor("#ADC178");
-			gameModalityStatic.setFill("#F0EAD2");
-		}
-		gameModalityStatic.setPadding(10 + (gameModalityProgressive.width - 20 - gameModalityStatic.width) / 2, 10, 10 + (gameModalityProgressive.width - 20 - gameModalityStatic.width) / 2, 10);
-		gameModalityStatic.setInteractive();
-		gameModalityStatic.on('pointerdown', function () {
-			gameModalityStatic.setBackgroundColor("#ADC178");
-			gameModalityStatic.setFill("#F0EAD2");
-			gameModality = GAME_MODE.STATIC;
 
-			gameModalityProgressive.setBackgroundColor("#DDE5B6");
-			gameModalityProgressive.setFill("#A98467");
-		});
+		let gameModalityStatic = createButton(this, resolution[0] / 2 + settingsOffset - 160, resolution[1] / 1.6,
+			"Static", gameModality === GAME_MODE.PROGRESSIVE ? 0xDDE5B6 : 0xADC178,
+			gameModality === GAME_MODE.PROGRESSIVE ? 0xA98467 : 0xF0EAD2,
+			function () {
+				gameModality = GAME_MODE.STATIC;
+				updateButtonStyles();
+			});
+		let gameModalityProgressive = createButton(this, resolution[0] / 2 + settingsOffset + 160, resolution[1] / 1.6,
+			"Progressive", gameModality === GAME_MODE.STATIC ? 0xDDE5B6 : 0xADC178,
+			gameModality === GAME_MODE.STATIC ? 0xA98467 : 0xF0EAD2,
+			function () {
+				gameModality = GAME_MODE.PROGRESSIVE;
+				updateButtonStyles();
+			});
+
+		function updateButtonStyles() {
+			gameModalityStatic.list[0].clear();
+			gameModalityStatic.list[0].fillStyle(gameModality === GAME_MODE.PROGRESSIVE ? 0xDDE5B6 : 0xADC178, 1);
+			gameModalityStatic.list[0].fillRoundedRect(-75, -20, 150, 40, 10);
+			gameModalityStatic.list[1].setColor(
+				Phaser.Display.Color.RGBToString(
+					gameModality === GAME_MODE.PROGRESSIVE ? 0xA98467 >> 16 : 0xF0EAD2 >> 16,
+					gameModality === GAME_MODE.PROGRESSIVE ? (0xA98467 >> 8) & 0xff : (0xF0EAD2 >> 8) & 0xff,
+					gameModality === GAME_MODE.PROGRESSIVE ? 0xA98467 & 0xff : 0xF0EAD2 & 0xff
+				)
+			);
+			gameModalityProgressive.list[0].clear();
+			gameModalityProgressive.list[0].fillStyle(gameModality === GAME_MODE.STATIC ? 0xDDE5B6 : 0xADC178, 1);
+			gameModalityProgressive.list[0].fillRoundedRect(-75, -20, 150, 40, 10);
+			gameModalityProgressive.list[1].setColor(
+				Phaser.Display.Color.RGBToString(
+					gameModality === GAME_MODE.STATIC ? 0xA98467 >> 16 : 0xF0EAD2 >> 16,
+					gameModality === GAME_MODE.STATIC ? (0xA98467 >> 8) & 0xff : (0xF0EAD2 >> 8) & 0xff,
+					gameModality === GAME_MODE.STATIC ? 0xA98467 & 0xff : 0xF0EAD2 & 0xff
+				)
+			);
+		}
 
 		let offset = 300;
-		startGame = this.add.text(resolution[0] / 2 - offset, resolution[1] / 1.2, "Single Player", { font: "bold 50px Arial", fill: "#A98467" }).setOrigin(0.5);
-		startGame.setPadding(15, 15, 15, 15);
-		startGame.setShadow(2, 2, '#F0EAD2', 2);
-		startGame.setInteractive();
-		startGame.on('pointerdown', function () {
+		let buttonWidth = 300;
+		let buttonHeight = 80;
+		let buttonColor = 0xA98467; // Color del botón
+		let textColor = "#F0EAD2"; // Color del texto
+		let borderColor = 0x8B6F50; // Color del borde
+
+		function createRoundedButton(scene, x, y, text, callback) {
+			let button = scene.add.graphics();
+			button.fillStyle(buttonColor, 1);
+			button.fillRoundedRect(x - buttonWidth / 2, y - buttonHeight / 2, buttonWidth, buttonHeight, 20);
+			button.lineStyle(4, borderColor, 1);
+			button.strokeRoundedRect(x - buttonWidth / 2, y - buttonHeight / 2, buttonWidth, buttonHeight, 20);
+			let buttonText = scene.add.text(x, y, text, {
+				font: "bold 40px Arial",
+				fill: textColor
+			}).setOrigin(0.5);
+			let hitArea = scene.add.rectangle(x, y, buttonWidth, buttonHeight).setInteractive();
+			hitArea.on('pointerdown', callback);
+			hitArea.on('pointerover', function () {
+				button.clear();
+				button.fillStyle(0x8B6F50, 1);
+				button.fillRoundedRect(x - buttonWidth / 2, y - buttonHeight / 2, buttonWidth, buttonHeight, 20);
+				button.strokeRoundedRect(x - buttonWidth / 2, y - buttonHeight / 2, buttonWidth, buttonHeight, 20);
+			});
+			hitArea.on('pointerout', function () {
+				button.clear();
+				button.fillStyle(buttonColor, 1);
+				button.fillRoundedRect(x - buttonWidth / 2, y - buttonHeight / 2, buttonWidth, buttonHeight, 20);
+				button.strokeRoundedRect(x - buttonWidth / 2, y - buttonHeight / 2, buttonWidth, buttonHeight, 20);
+			});
+
+			return hitArea;
+		}
+		createRoundedButton(this, resolution[0] / 2 - offset, resolution[1] / 1.2, "Single Player", function () {
 			askForStartGame = true;
 		});
-		startGame = this.add.text(resolution[0] / 2 + offset, resolution[1] / 1.2, "Multiplayer", { font: "bold 50px Arial", fill: "#A98467" }).setOrigin(0.5);
-		startGame.setPadding(15, 15, 15, 15);
-		startGame.setShadow(2, 2, '#F0EAD2', 2);
-		startGame.setInteractive();
-		startGame.on('pointerdown', function () {
+		createRoundedButton(this, resolution[0] / 2 + offset, resolution[1] / 1.2, "Multiplayer", function () {
 			game.scene.start("multiplayerScene");
 		});
 
 		this.input.keyboard.on('keydown', function (event) {
 			if (event.key == " " || event.key == "Enter") {
-				game.anims.anims.clear() //Remove player animations before restarting the game
-				game.textures.remove("grid-texture"); //Remove canvas texture before restarting the game
+				game.anims.anims.clear()
+				game.textures.remove("grid-texture");
 				game.scene.start("playScene");
 				game.scene.stop("settingsScene");
 			}
@@ -512,49 +592,54 @@ function generateRoomCode() {
 	return roomCode;
 }
 
+function createButton(scene, x, y, text, bgColor, textColor, width = 180, height = 50, fontSize = 26, callback) {
+	let buttonGraphics = scene.add.graphics();
+	buttonGraphics.fillStyle(bgColor, 1);
+	buttonGraphics.fillRoundedRect(-width / 2, -height / 2, width, height, 10);
+
+	let buttonContainer = scene.add.container(x, y);
+	buttonContainer.add(buttonGraphics);
+
+	let buttonText = scene.add.text(0, 0, text, {
+		font: `bold ${fontSize}px Arial`,
+		fill: Phaser.Display.Color.RGBToString(
+			textColor >> 16,
+			(textColor >> 8) & 0xff,
+			textColor & 0xff
+		)
+	}).setOrigin(0.5);
+	buttonContainer.add(buttonText);
+
+	buttonContainer.setSize(width, height);
+	buttonContainer.setInteractive().on('pointerdown', callback);
+
+	return buttonContainer;
+}
+
 var multiplayerScene = {
 	preload: function () {
-		// Load necessary resources for the multiplayer scene
-		// this.load.image('background', 'assets/background.jpg'); // Load a background image if needed
+		this.cameras.main.setBackgroundColor("#F0EAD2");
 	},
 	create: function () {
-		this.cameras.main.setBackgroundColor("#F0EAD2");
-
-		// Scene Title
 		this.add.text(resolution[0] / 2, resolution[1] / 4, "MusicNet",
 			{ font: "bold 48px Arial", fill: "#A98467", align: "center" })
 			.setOrigin(0.5);
 
-		// "Create Room" Button
-		this.add.text(resolution[0] / 2 - 150, resolution[1] / 2, "Create Room",
-			{ font: "bold 26px Arial", fill: "#F0EAD2", backgroundColor: "#A98467" })
-			.setOrigin(0.5)
-			.setPadding(20, 10, 20, 10) // Adjust padding to make the button bigger
-			.setInteractive()
-			.on('pointerdown', function () {
+		createButton(this, resolution[0] / 2 - 150, resolution[1] / 2,
+			"Create Room", 0xA98467, 0xF0EAD2, 180, 50, 26, function () {
 				const roomCode = generateRoomCode();
-				game.scene.start("createRoomScene", { roomCode: roomCode }); // Go to the create room scene
+				game.scene.start("createRoomScene", { roomCode: roomCode });
 			});
 
-		// "Join Room" Button
-		this.add.text(resolution[0] / 2 + 150, resolution[1] / 2, "Join Room",
-			{ font: "bold 26px Arial", fill: "#F0EAD2", backgroundColor: "#ADC178" })
-			.setOrigin(0.5)
-			.setPadding(20, 10, 20, 10) // Adjust padding to make the button bigger
-			.setInteractive()
-			.on('pointerdown', function () {
-				game.scene.start("joinRoomScene"); // Go to the join room scene
+		createButton(this, resolution[0] / 2 + 150, resolution[1] / 2,
+			"Join Room", 0xADC178, 0xF0EAD2, 180, 50, 26, function () {
+				game.scene.start("joinRoomScene");
 			});
 
-		// "Back" Button
-		this.add.text(20, 20, "← Back",
-			{ font: "bold 22px Arial", fill: "#F0EAD2", backgroundColor: "#A98467" })
-			.setPadding(10, 5, 10, 5)
-			.setInteractive()
-			.on('pointerdown', function () {
-				game.scene.stop("multiplayerScene"); // Stop the current scene
-				game.scene.start("settingsScene"); // Return to the main scene
-			});
+		createButton(this, 80, 40, "← Back", 0xA98467, 0xF0EAD2, 100, 40, 20, function () {
+			game.scene.stop("multiplayerScene");
+			game.scene.start("settingsScene");
+		});
 	}
 };
 game.scene.add("multiplayerScene", multiplayerScene);
@@ -589,18 +674,10 @@ var createRoomScene = {
 			{ font: "bold 24px Arial", fill: "#6C584C", align: "center" })
 			.setOrigin(0.5);
 
-		// "Back" button
-		let backButton = this.add.text(20, 20, "← Back",
-			{ font: "bold 22px Arial", fill: "#F0EAD2", backgroundColor: "#ADC178" })
-			.setPadding(10, 5, 10, 5)
-			.setInteractive()
-			.on('pointerdown', function () {
-				game.scene.stop("createRoomScene"); // Stop the current scene
-				game.scene.start("settingsScene"); // Return to the main scene
-			});
-
-		// Ensure the text is above the background
-		backButton.setDepth(1);
+		createButton(this, 80, 40, "← Back", 0xADC178, 0xF0EAD2, 100, 40, 20, function () {
+			game.scene.stop("createRoomScene");
+			game.scene.start("settingsScene");
+		});
 
 		//  WebRTC inicialitize
 		this.peerConnection = initializeWebRTC(roomCode, () => {
@@ -616,100 +693,84 @@ var createRoomScene = {
 		// Start game
 		socket.on('startGame', () => {
 			console.log(`Game Starting...`);
-			game.scene.stop("createRoomScene");  
-			game.scene.start("playScene");  
+			game.scene.stop("createRoomScene");
+			game.scene.stop("multiplayerScene");
+			game.scene.stop("settingsScene");
+			game.scene.start("playSceneMultiplayer", { roomCode: roomCode });
 		});
 	}
 };
 game.scene.add("createRoomScene", createRoomScene);
 
 var joinRoomScene = {
-    roomCode: "", // Variable para almacenar el código ingresado
+	roomCode: "",
 
-    preload: function () {},
+	preload: function () { },
 
-    create: function () {
-        this.cameras.main.setBackgroundColor("#F0EAD2"); // Color de fondo
+	create: function () {
+		this.cameras.main.setBackgroundColor("#F0EAD2");
 
-        // Botón "Regresar"
-        let backButton = this.add.text(20, 20, "← Back",
-            { font: "bold 22px Arial", fill: "#F0EAD2", backgroundColor: "#ADC178" })
-            .setPadding(10, 5, 10, 5)
-            .setInteractive()
-            .on('pointerdown', () => { // Función de flecha para conservar el contexto de "this"
-                game.scene.stop("joinRoomScene"); // Detener la escena actual
-                game.scene.start("multiplayerScene"); // Regresar a la escena multijugador
-            });
-        backButton.setDepth(1); // Asegurar que el texto esté sobre el fondo
+		createButton(this, 80, 40, "← Back", 0xADC178, 0xF0EAD2, 100, 40, 20, () => {
+			game.scene.stop("joinRoomScene");
+			game.scene.start("multiplayerScene");
+		});
+		this.add.text(window.innerWidth / 2, window.innerHeight / 4, "Join Room",
+			{ font: "bold 48px Arial", fill: "#6C584C", align: "center" })
+			.setOrigin(0.5);
 
-        // Título de la escena
-        this.add.text(window.innerWidth / 2, window.innerHeight / 4, "Join Room",
-            { font: "bold 48px Arial", fill: "#6C584C", align: "center" })
-            .setOrigin(0.5);
+		this.roomCode = "";
 
-        // Inicializar `roomCode`
-        this.roomCode = "";
+		this.roomCodeText = this.add.text(window.innerWidth / 2, window.innerHeight / 2, "_______________",
+			{ font: "bold 32px Arial", fill: "#6C584C", backgroundColor: "#FFFFFF", padding: 10 })
+			.setOrigin(0.5);
 
-        // Campo de texto para mostrar el código de la sala
-        this.roomCodeText = this.add.text(window.innerWidth / 2, window.innerHeight / 2, "_______________",
-            { font: "bold 32px Arial", fill: "#6C584C", backgroundColor: "#FFFFFF", padding: 10 })
-            .setOrigin(0.5);
+		this.input.keyboard.on('keydown', (event) => {
+			if (typeof this.roomCode !== "string") {
+				this.roomCode = "";
+			}
 
-        // Capturar eventos del teclado
-        this.input.keyboard.on('keydown', (event) => {
-            if (typeof this.roomCode !== "string") {
-                this.roomCode = ""; // Asegurar que no sea undefined
-            }
+			if (event.key === "Backspace") {
+				this.roomCode = this.roomCode.slice(0, -1);
+			} else if (event.key.length === 1 && this.roomCode.length < 6) {
+				this.roomCode += event.key.toUpperCase();
+			} else if (event.key === "Enter") {
+				joinRoomScene.joinRoom(this.roomCode);
 
-            if (event.key === "Backspace") {
-                this.roomCode = this.roomCode.slice(0, -1);
-            } else if (event.key.length === 1 && this.roomCode.length < 6) {
-                this.roomCode += event.key.toUpperCase();
-            } else if (event.key === "Enter") { 
-                joinRoomScene.joinRoom(this.roomCode);
+			}
+			this.roomCodeText.setText(this.roomCode.length > 0 ? this.roomCode : "_______________");
+		});
 
-            }
+		createButton(this, window.innerWidth / 2, window.innerHeight / 2 + 80, "Join", 0xDDE5B6, 0x6C584C, 120, 50, 20, () => {
+			joinRoomScene.joinRoom(this.roomCode);
+		});
+	},
 
-            // Actualizar el texto con el código ingresado
-            this.roomCodeText.setText(this.roomCode.length > 0 ? this.roomCode : "_______________");
-        });
+	joinRoom: function (roomCode) {
+		if (!roomCode || roomCode.length < 6) {
+			console.error("Invalid room code");
+			return;
+		}
 
-        // Botón "Join"
-        this.add.text(window.innerWidth / 2, window.innerHeight / 2 + 80, "Join",
-            { font: "bold 26px Arial", fill: "#6C584C", backgroundColor: "#DDE5B6" })
-            .setOrigin(0.5)
-            .setPadding(10, 5, 10, 5)
-            .setInteractive({ useHandCursor: true })
-            .on('pointerdown', () => {
-                joinRoomScene.joinRoom(this.roomCode);
-            })
-            .setDepth(2); 
-    },
+		console.log("Attempting to join room:", roomCode);
 
-    joinRoom: function (roomCode) {
-        if (!roomCode || roomCode.length < 6) {
-            console.error("Invalid room code");
-            return;
-        }
-
-        console.log("Attempting to join room:", roomCode);
-
-        const peerConnection = initializeWebRTC(roomCode, () => {
-            const dataChannel = setupDataChannel(peerConnection, this.handleMessage.bind(this));
-            this.dataChannel = dataChannel;
-            console.log("WebRTC connection and data channel are ready");
-        });
+		const peerConnection = initializeWebRTC(roomCode, () => {
+			const dataChannel = setupDataChannel(peerConnection, this.handleMessage.bind(this));
+			this.dataChannel = dataChannel;
+			console.log("WebRTC connection and data channel are ready");
+		});
 
 		socket.on('startGame', () => {
-			console.log("Game starting...");
+			console.log("📢 Segundo jugador recibió startGame");
 			game.scene.stop("joinRoomScene");
-			game.scene.start("playScene");
+			game.scene.stop("multiplayerScene");
+			game.scene.stop("settingsScene");
+			game.scene.start("playSceneMultiplayer", { roomCode: roomCode });
 		});
-    },
+	},
 
-    handleMessage: function (message) {
-        console.log("Message in scene:", message);
-    }
+	handleMessage: function (message) {
+		console.log("Message in scene:", message);
+	}
 };
 game.scene.add("joinRoomScene", joinRoomScene);
 
@@ -718,7 +779,7 @@ function loadSettings() {
 }
 
 var playScene = {
-	preload: function () {
+	preload: function () {/*
 		//Needed to be set here to set the player dimension correctly
 		playerWidth = 19;
 		playerHeight = 48;
@@ -728,9 +789,9 @@ var playScene = {
 		this.load.spritesheet('player-fly', 'assets/player_fly.png', { frameWidth: 28, frameHeight: playerHeight });
 		this.load.image('play', 'assets/play.png');
 		this.load.image('pause', 'assets/pause.png');
-		this.load.image('settings', 'assets/settings.png');
+		this.load.image('settings', 'assets/settings.png');*/
 	},
-	create: function () {
+	create: function () {/*
 
 		initVariables();
 		gameContext = this;
@@ -930,10 +991,10 @@ var playScene = {
 
 		//SETTING OF GAME STATUS
 		//------------------------------------------------------------------------------------------------------
-		gameStatus = "Started";
+		gameStatus = "Started";*/
 	},
 
-	update: function () {
+	update: function () {/*
 		let elapsedTime = Math.floor((this.time.now / 1000) - this.startTime);
 		let minutes = Math.floor(elapsedTime / 60);
 		let seconds = elapsedTime % 60;
@@ -1251,7 +1312,7 @@ var playScene = {
 				}
 				this.physics.world.colliders.destroy();
 			}
-		}
+		}*/
 	}
 }
 game.scene.add("playScene", playScene);
@@ -1383,7 +1444,396 @@ var gameoverScene = {
 }
 game.scene.add("gameoverScene", gameoverScene);
 
+var playSceneMultiplayer = {
+	preload: function () {
+		playerWidth = 19;
+		playerHeight = 48;
+		this.load.spritesheet('player', 'assets/player.png', { frameWidth: playerWidth, frameHeight: playerHeight });
+		this.load.spritesheet('player-fly', 'assets/player_fly.png', { frameWidth: 28, frameHeight: playerHeight });
+		this.load.image('play', 'assets/play.png');
+		this.load.image('pause', 'assets/pause.png');
+		this.load.image('settings', 'assets/settings.png');
+	},
+	handleMessage: function (message) {
+		if (message.type === "scoreUpdate") {
+			console.log("Opponent Score Updated via WebRTC:", message.score);
+			this.opponentScoreText.setText('Opponent: ' + message.score);
+		}
+	},
+	create: function (data) {
+		if (!data || !data.roomCode) {
+			console.error("No room ID provided");
+			return;
+		}
+		this.currentRoomId = data.roomCode;
+		const peerConnection = initializeWebRTC(this.currentRoomId, () => {
+			const dataChannel = setupDataChannel(peerConnection, this.handleMessage.bind(this));
+			this.dataChannel = dataChannel;
+			console.log("WebRTC connection and data channel are ready");
+		});
+		initVariables();
+		gameContext = this;
+		this.cameras.main.fadeIn(500, 255, 255, 255);
+		createBackground(this);
+		backgroundImage = this.add.image(resolution[0] / 2, resolution[1] / 2, 'background' + gameLevel);
+		backgroundImage.setDepth(-2);
+		backgroundImage.setAlpha(0);
+		tween = this.add.tween({ targets: backgroundImage, ease: 'Sine.easeInOut', duration: 1000, delay: 0, alpha: { getStart: () => 0, getEnd: () => 1 } });
+		this.physics.world.setBounds(0, 0, resolution[0], resolution[1]);
+		footer = this.add.text(resolution[0] / 2, resolution[1] - 20, "Copyright © 2025 - Rozo · Lopez", { font: "15px Arial", fill: platformColor }).setOrigin(0.5);
+		player = this.physics.add.sprite(playerFixedX, playerInitialY, 'player').setScale(resolution[1] / 636);
+		player.setCollideWorldBounds(false);
+		player.body.setGravityY(-gravity);
+		this.anims.create({
+			key: 'playerRun',
+			frames: this.anims.generateFrameNumbers('player', { start: 0, end: 8 }),
+			frameRate: 15 * Math.sqrt(gameVelocity),
+			repeat: -1
+		});
+		this.anims.create({
+			key: 'playerStop',
+			frames: [{ key: 'player', frame: 0 }],
+			frameRate: 2
+		});
+		this.anims.create({
+			key: 'playerFly',
+			frames: this.anims.generateFrameNumbers('player-fly', { start: 0, end: 8 }),
+			frameRate: 15 * Math.sqrt(gameVelocity),
+			repeat: -1
+		});
+		platforms = this.physics.add.staticGroup();
+		pointer = 0;
+		j = 0;
+		while (pointer < resolution[0]) {
+			newLevel = generateLevel();
+			levelValue = newLevel[0];
+			levelHeight = newLevel[1];
+			levelDuration = newLevel[2];
+			createPlatformTexture(this, measurePlatformWidth * levelDuration, platformHeight, levelDuration);
+			if (j == 0) {
+				platformInitialX = (gameInitialX - playerWidth / 2) + ((measurePlatformWidth * levelDuration) / 2) - platformInitialPlayerOffset;
+				pointer = platformInitialX;
+			}
+			else {
+				pointer += (measurePlatformWidth * levelDuration) / 2;
+			}
+			lastCreatedPlatform = platforms.create(pointer, levelHeight, 'platform' + levelDuration + platformHeight);
+			lastCreatedPlatform.level = levelValue;
+			lastCreatedPlatform.duration = levelDuration;
+			lastCreatedPlatform.changeLevel = false;
+			if (changeLevelEvent) {
+				lastCreatedPlatform.changeLevel = true;
+				changeLevelEvent = false;
+			}
+			if (levelValue == 0) {
+				lastCreatedPlatform.setVisible(false); //Hide texture
+				lastCreatedPlatform.disableBody(); //Disable the body
+			}
+			levelsQueue.push(levelValue);
+			pointer += (measurePlatformWidth * levelDuration) / 2;
+			if (j == 0)
+				currentPlatform = lastCreatedPlatform;
+			j++;
+		}
+		levelValue = 1;
+		levelHeight = (player.height * 3) + ((numberOfLevels - levelValue) * stepHeight) + (stepHeight / 2);
+		levelDuration = 1 / 8;
+		createPlatformTexture(this, measurePlatformWidth * levelDuration, 1, levelDuration);
+		scalePlatform = platforms.create(playerFixedX, levelHeight, 'platform' + levelDuration + 1);
+		scalePlatform.setVisible(false); //Hide texture
+		createGridTexture(this, measurePlatformWidth, timeSignature);
+		measureGrids = this.physics.add.staticGroup();
+		gridLength = measurePlatformWidth;
+		numberOfInitialMeasures = resolution[0] / measurePlatformWidth;
+		for (i = 0; i < numberOfInitialMeasures; i++) {
+			lastGrid = measureGrids.create((gameInitialX - (playerWidth / 2) + (gridLength / 2)) + (gridLength * i) - platformInitialPlayerOffset, (resolution[1] / 2) + playerHeight, 'grid-texture');
+			lastGrid.setDepth(-1);
+			lastGrid.progressiveNumber = 0;
+		}
+		collider = this.physics.add.collider(player, platforms, platformsColliderCallback);
+		scoreText = this.add.text(16, 16, 'Score: ' + score, { fontSize: fontSize + 'px', fill: fontColor, fontFamily: "Arial" });
+		opponentScoreText = this.add.text(16, 40, 'Opponent: 0', { fontSize: fontSize + 'px', fill: fontColor, fontFamily: "Arial" });
+		socket.on('opponentScoreUpdate', function (data) {
+			if (data.roomId === this.currentRoomId) {
+				console.log("Opponent Score Received:", data.score);
+				this.opponentScoreText.setText('Opponent: ' + data.score);
+			}
+		}.bind(this));
+		this.startTime = this.time.now / 1000;
+		this.timeText = this.add.text(200, 16, 'Time: 0s', { fontSize: fontSize + 'px', fill: fontColor, fontFamily: "Arial" });
+		referenceNoteButton = this.add.text(resolution[0], playerHeight * 2.2, 'Play Reference', { fontSize: fontSize + 'px', fill: fontColor, fontFamily: "Arial" });
+		referenceNoteButton.setBackgroundColor("#F0EAD2");
+		referenceNoteButton.setPadding(8, 8, 8, 8);
+		referenceNoteButton.setX(resolution[0] - referenceNoteButton.width - 10);
+		referenceNoteButton.setY(referenceNoteButton.y - 10);
+		referenceNoteButton.setInteractive();
+		referenceNoteButton.on('pointerdown', () => {
+			buttonPlayReference();
+		});
+		currentScaleText = this.add.text(resolution[0] - ((resolution[0] - referenceNoteButton.x) - referenceNoteButton.width), playerHeight * 1.8, '', { fontSize: fontSize + 2 + 'px', fill: fontColor, fontFamily: "Arial" }).setOrigin(1);
+		currentScaleTextDesc = this.add.text((resolution[0] - ((resolution[0] - referenceNoteButton.x) - referenceNoteButton.width)), playerHeight * 1.8, 'Current Scale: ', { fontSize: (fontSize - 4) + 'px', fill: fontColor, fontFamily: "Arial" }).setOrigin(1);
+		currentScaleTextDesc.setX(currentScaleText.x - currentScaleText.width);
+		if (noteReference.substring(1, 2) == '#')
+			currentNoteReference = noteReference.substring(0, 2);
+		else
+			currentNoteReference = noteReference.substring(0, 1);
+		currentScaleText.setText('' + currentNoteReference + ' ' + gameLevelToScaleArray[gameLevel].charAt(0).toUpperCase() + gameLevelToScaleArray[gameLevel].slice(1));
+		currentScaleTextDesc.setX(currentScaleText.x - currentScaleText.width);
+		this.input.on('pointerdown', function () {
+		}, this);
+		statusText = this.add.text(resolution[0] / 2, playerHeight * 3 / 2, 'Space/Enter To Play!', { font: "bold 40px Arial", fill: fontColor }).setOrigin(0.5);
+		statusText.setShadow(2, 2, '#F0EAD2', 2);
+		statusText.setAlign('center');
+		tween = gameContext.add.tween({ targets: statusText, ease: 'Sine.easeInOut', duration: 300, delay: 0, alpha: { getStart: () => 0, getEnd: () => 1 } });
+		statusTextSmall = this.add.text(resolution[0] / 2, playerHeight * 2, '', { font: "bold 25px Arial", fill: fontColor }).setOrigin(0.5);
+		statusTextSmall.setShadow(2, 2, '#F0EAD2', 2);
+		statusTextSmall.setAlign('center');
+		centeredText = this.add.text(resolution[0] / 2, resolution[1] / 2, '', { font: "bold 190px Arial", fill: fontColor }).setOrigin(0.5);
+		centeredText.setShadow(5, 5, '#F0EAD2', 5);
+		centeredText.setAlign('center');
+		playPauseButton = this.add.image(resolution[0] - 100, (playerHeight * 0.6), 'play').setScale(0.8);
+		playPauseButton.setInteractive();
+		playPauseButton.on('pointerdown', function () {
+			manageStatus();
+		});
+		settingsButton = this.add.image(resolution[0] - (playerHeight * resolution[1] / 636) / 2 - 10, (playerHeight * 0.6), 'settings').setScale(0.6);
+		settingsButton.setInteractive();
+		settingsButton.on('pointerdown', function () {
+			game.scene.stop("playSceneMultiplayer");
+			game.scene.stop("gamoverScene");
+			game.scene.stop("pauseScene");
+			game.scene.start("settingsScene");
+		});
+		gameStatus = "Started";
+	},
+	update: function () {
+		let elapsedTime = Math.floor((this.time.now / 1000) - this.startTime);
+		let minutes = Math.floor(elapsedTime / 60);
+		let seconds = elapsedTime % 60;
+		let formattedTime = (minutes < 10 ? '0' : '') + minutes + ":" + (seconds < 10 ? '0' : '') + seconds;
+		this.timeText.setText('Time: ' + formattedTime);
+		if (game.scene.isActive("playSceneMultiplayer")) {
+			measureGrids.getChildren().forEach(function (p) {
+				if (p.x < -p.width / 2)
+					p.destroy();
+			})
+			measureGrids.getChildren().forEach(function (p) {
+				p.x = p.x - platformVelocity;
+				p.body.x = p.body.x - platformVelocity;
+			});
+			if (lastGrid.x <= resolution[0] - measurePlatformWidth / 2) { //When the platform is completely on the screen, generate a new platform
+				prevGridNumber = lastGrid.progressiveNumber;
+				if (lastGrid.progressiveNumber == 0) { //The first to be created with update function
+					lastGrid = measureGrids.create(resolution[0] + (measurePlatformWidth / 2) - 1, (resolution[1] / 2) + playerHeight, 'grid-texture');
+					lastGrid.setDepth(-1);
+				}
+				else {
+					lastGrid = measureGrids.create(resolution[0] + (measurePlatformWidth / 2), (resolution[1] / 2) + playerHeight, 'grid-texture');
+					lastGrid.setDepth(-1);
+				}
+				lastGrid.progressiveNumber = prevGridNumber + 1;
+			}
+			if (lastCreatedPlatform.x <= resolution[0] - lastCreatedPlatform.width / 2) { //When the platform is completely on the screen, generate a new platform
+				newLevel = generateLevel();
+				levelValue = newLevel[0];
+				levelHeight = newLevel[1];
+				levelDuration = newLevel[2];
+				createPlatformTexture(this, measurePlatformWidth * levelDuration, platformHeight, levelDuration);
+				lastCreatedPlatform = platforms.create(resolution[0] + (measurePlatformWidth * levelDuration) / 2, levelHeight, 'platform' + levelDuration + platformHeight);
+				lastCreatedPlatform.level = levelValue;
+				lastCreatedPlatform.duration = levelDuration;
+				lastCreatedPlatform.changeLevel = false;
+				if (changeLevelEvent) {
+					lastCreatedPlatform.changeLevel = true;
+					changeLevelEvent = false;
+				}
+				if (levelValue == 0) {
+					lastCreatedPlatform.setVisible(false);
+					lastCreatedPlatform.disableBody();
+				}
 
+				levelsQueue.push(levelValue);
+			}
+			playerLeftBorder = (gameInitialX - player.width / 2);
+			platforms.getChildren().forEach(function (p) {
+				if (p.x < -p.width / 2)
+					p.destroy();
+			})
+			platforms.getChildren().forEach(function (p) {
+				p.x = p.x - platformVelocity;
+				p.body.x = p.body.x - platformVelocity;
+				platformLeftBorder = (p.x - (p.width / 2));
+				currentPlatformWidth = currentPlatform.width;
+				playerEnterJumpArea = (playerLeftBorder > platformLeftBorder + currentPlatformWidth - jumpAreaWidth) && ((playerLeftBorder - gameVelocity) <= (platformLeftBorder + currentPlatformWidth - jumpAreaWidth));
+				if (playerEnterJumpArea) {
+					jumpArea = true;
+					noAnswer = true;
+					fallBeforePause = false;
+					if (levelsQueue[1] == 0) {
+						pauseEvent = true;
+						playerPauseY = player.y;
+					}
+				}
+				currentPlatformChanged = (playerLeftBorder > platformLeftBorder) && (playerLeftBorder - gameVelocity <= platformLeftBorder);
+				if (currentPlatformChanged) {
+					if (levelsQueue[0] == 0) {
+						pauseEvent = false;
+						player.setGravityY(playerGravity);
+					}
+					levelsQueue.shift();
+					if (levelsQueue[0] == 0) {
+						playerEnterPause = true;
+						if (pitchDetector.isEnable()) {
+							pitchDetector.toggleEnable();
+						}
+					}
+					else {
+						playerEnterPause = false;
+					}
+					currentPlatform = p;
+					if (noAnswer)
+						goAhead = false;
+
+					jumpArea = false;
+				}
+			})
+			if (player.body.touching.down && playerFixedX == 200) {
+				player.anims.play('playerRun', true);
+				player.body.setGravityY(playerGravity);
+				gameStatus = "Running";
+				jumpFromPause = false;
+				playerEndY = 0;
+				endedPauseAnimation = false;
+				if (score == 0) {
+					score++;
+					scoreText.setText('Score: ' + score);
+					socket.emit('updateScore', { roomId: this.currentRoomId, score: score });
+					sendData(this.dataChannel, { type: "scoreUpdate", score: score }); 
+					statusText.setText("Sing!");
+					tween = gameContext.add.tween({ targets: statusText, ease: 'Sine.easeInOut', duration: 300, delay: 0, alpha: { getStart: () => 1, getEnd: () => 0 } });
+					tween2 = gameContext.add.tween({ targets: statusText, ease: 'Sine.easeInOut', duration: 300, delay: 0, alpha: { getStart: () => 1, getEnd: () => 0 } });
+					tween.setCallback(function () {
+						statusText.setText();
+						centeredText.setText();
+					});
+					if (noAnswer) {
+						goAhead = false;
+					}
+				}
+			}
+			else {
+				if (levelsQueue[0] != 0 || jumpFromPause) {
+					player.anims.play('playerStop', true);
+				}
+				platformTouched = false;
+			}
+			if (!player.body.touching.down) {
+				if (player.y > playerPreviousY + 1 && collider.overlapOnly == true) {
+					collider.overlapOnly = false;
+				}
+				playerPreviousY = player.y;
+			}
+			if (levelsQueue[1] == 0 && player.x > currentPlatform.x + currentPlatform.width / 2 + initialPauseStability && !fallBeforePause) {
+				player.y = playerPauseY;
+				player.body.y = playerPauseY;
+				player.setGravityY(-gravity);
+			}
+			if (levelsQueue[0] == 0 && !jumpFromPause && pauseEvent) {
+				player.body.setGravityY(-gravity);
+				goAhead = true;
+				if (playerEnterPause) {
+					playerEndY = ((player.height * 3) + ((numberOfLevels - levelsQueue[1]) * stepHeight) + (stepHeight / 2)) - 5;
+					pauseStepTween = gameContext.add.tween({ targets: player, ease: 'Sine.easeInOut', duration: (currentPlatform.duration * 10000), delay: 0, y: { getStart: () => playerPauseY, getEnd: () => playerEndY } });
+					pauseStepTween.setCallback("onComplete", function () {
+						endedPauseAnimation = true;
+						if (!pitchDetector.isEnable()) {
+							pitchDetector.toggleEnable();
+						}
+					}, player);
+					playerEnterPause = false;
+					if (currentPlatform.changeLevel && gameModality == GAME_MODE.PROGRESSIVE) {
+						changeLevelAndBackground();
+						currentScaleTextTween = gameContext.add.tween({ targets: currentScaleText, ease: 'Sine.easeInOut', duration: 300, delay: 0, alpha: { getStart: () => 1, getEnd: () => 0 } });
+						currentScaleTextDescTween = gameContext.add.tween({ targets: currentScaleTextDesc, ease: 'Sine.easeInOut', duration: 300, delay: 0, alpha: { getStart: () => 1, getEnd: () => 0 } });
+						currentScaleTextTween.setCallback("onComplete", function () {
+							if (noteReference.substring(1, 2) == '#')
+								currentNoteReference = noteReference.substring(0, 2);
+							else
+								currentNoteReference = noteReference.substring(0, 1);
+							currentScaleText.setText('' + currentNoteReference + ' ' + gameLevelToScaleArray[gameLevel].charAt(0).toUpperCase() + gameLevelToScaleArray[gameLevel].slice(1));
+							currentScaleTextDesc.setX(currentScaleText.x - currentScaleText.width);
+						}, currentScaleText);
+						gameContext.add.tween({ targets: currentScaleText, ease: 'Sine.easeInOut', duration: 300, delay: 300, alpha: { getStart: () => 0, getEnd: () => 1 } });
+						gameContext.add.tween({ targets: currentScaleTextDesc, ease: 'Sine.easeInOut', duration: 300, delay: 300, alpha: { getStart: () => 0, getEnd: () => 1 } });
+					}
+				}
+				if (endedPauseAnimation) {
+					player.y = playerEndY;
+					player.body.y = playerEndY;
+				}
+				if (player.x - playerWidth / 2 - 5 > currentPlatform.x - currentPlatform.width / 2 && player.x + playerWidth / 2 < currentPlatform.x + currentPlatform.width / 2) {
+					player.anims.play('playerFly', true);
+				}
+			}
+			if (gameStatus == "Intro") {
+				if (player.body.touching.down && initialScaleNote + 1 < 8) {
+					initialScaleNote++;
+					playLevel(initialScaleNote);
+					player.setVelocityY(-1 * Math.pow(2 * (gravity + playerGravity * (introVelocity / 10)) * stepHeight * 1.5, 1 / 2));
+					collider.overlapOnly = true;
+					levelValue = initialScaleNote + 1;
+					levelHeight = (player.height * 3) + ((numberOfLevels - levelValue) * stepHeight) + (stepHeight / 2);
+					levelDuration = 1 / 8;
+					createPlatformTexture(this, measurePlatformWidth * levelDuration, 1, levelDuration);
+					scalePlatform = platforms.create(playerFixedX, levelHeight, 'platform' + levelDuration + 1);
+					scalePlatform.setVisible(false);
+				}
+				else if (player.body.touching.down && countdown > 1) {
+					countdown--;
+					if (countdown == 3) {
+						initialScaleNote++;
+						playLevel(initialScaleNote);
+						statusText.setAlpha(0);
+						statusText.setText("Ready?!");
+						statusTextTween = gameContext.add.tween({ targets: statusText, ease: 'Sine.easeInOut', duration: 300, delay: 0, alpha: { getStart: () => 0, getEnd: () => 1 } });
+					}
+					player.setVelocityY(-1 * Math.pow(2 * (gravity + playerGravity * (introVelocity / 10)) * stepHeight * 2 * (636 / resolution[1]), 1 / 2));
+					centeredText.setAlpha(0);
+					centeredText.setText(countdown);
+					centeredTextTween = gameContext.add.tween({ targets: centeredText, ease: 'Sine.easeInOut', duration: 300, delay: 0, alpha: { getStart: () => 0, getEnd: () => 1 } });
+				}
+				else if (player.body.touching.down) {
+					countdown--;
+					centeredText.setText();
+					statusText.setText("Sing!");
+					noAnswer = true;
+					player.setVelocityY(-1 * Math.pow(2 * (gravity + playerGravity * (introVelocity / 10)) * stepHeight * 2.3 * (636 / resolution[1]), 1 / 2));
+					if (!pitchDetector.isEnable())
+						pitchDetector.toggleEnable();
+					t = gameContext.add.tween({ targets: player, ease: 'Sine.easeInOut', duration: (800 / Math.sqrt(introVelocity * 1.5)) * Math.sqrt(resolution[1] / 636) * 1.1, delay: 0, x: { getStart: () => playerFixedX, getEnd: () => gameInitialX } });
+					t.setCallback("onComplete", function () {
+						playerFixedX = gameInitialX;
+						player.setGravityY(playerGravity);
+					}, player);
+				}
+			}
+			if (gameStatus == "Running")
+				platformVelocity = gameVelocity;
+			if (player.y > resolution[1] + player.height / 2) {
+				game.scene.pause("playSceneMultiplayer");
+				game.scene.start("gameoverScene");
+			}
+			if (!goAhead) {
+				if (gameStatus == "Running") {
+					player.body.setGravityY(playerGravity);
+					player.angle += 5;
+				}
+				this.physics.world.colliders.destroy();
+			}
+		}
+	}
+}
+game.scene.add("playSceneMultiplayer", playSceneMultiplayer);
 
 
 function createPlatformTexture(context, width, height, levelDuration, color = platformColor) {
