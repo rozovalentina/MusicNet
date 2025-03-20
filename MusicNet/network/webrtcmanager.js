@@ -1,8 +1,6 @@
-import io from 'socket.io-client';
-
 const socket = io('https://musicnet-signaling-server-latest.onrender.com'); 
 
-export function initializeWebRTC(roomCode, onConnectionEstablished) {
+function initializeWebRTC(roomCode, onConnectionEstablished) {
     const peerConnection = new RTCPeerConnection({
         iceServers: [
             { urls: 'stun:stun.l.google.com:19302' }, // STUN server

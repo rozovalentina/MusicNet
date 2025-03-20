@@ -25,9 +25,6 @@ var modalScaleName = scales[startGameLevel]; //Identify the name of the default 
 changeScaleReference(modalScaleName);
 
 
-
-
-
 //Game Configuration
 var config = {
 	type: Phaser.AUTO,
@@ -604,8 +601,7 @@ var createRoomScene = {
 
 		// Ensure the text is above the background
 		backButton.setDepth(1);
-		},
-	update: function () {
+
 		//  WebRTC inicialitize
 		this.peerConnection = initializeWebRTC(roomCode, () => {
 			console.log(" WebRTC connection");
@@ -614,10 +610,16 @@ var createRoomScene = {
 
 		// Other user joined
 		socket.on('userJoined', (userId) => {
-			console.log(`User ${userId} join the room`);
-			// multiplayer logic
+			console.log(`User ${userId} joined the room`);
 		});
-	},
+
+		// Start game
+		socket.on('startGame', () => {
+			console.log(`Game Starting...`);
+			game.scene.stop("createRoomScene");  
+			game.scene.start("playScene");  
+		});
+	}
 };
 game.scene.add("createRoomScene", createRoomScene);
 
@@ -664,7 +666,8 @@ var joinRoomScene = {
             } else if (event.key.length === 1 && this.roomCode.length < 6) {
                 this.roomCode += event.key.toUpperCase();
             } else if (event.key === "Enter") { 
-                this.joinRoom(this.roomCode);
+                joinRoomScene.joinRoom(this.roomCode);
+
             }
 
             // Actualizar el texto con el código ingresado
@@ -678,9 +681,9 @@ var joinRoomScene = {
             .setPadding(10, 5, 10, 5)
             .setInteractive({ useHandCursor: true })
             .on('pointerdown', () => {
-                this.joinRoom(this.roomCode);
+                joinRoomScene.joinRoom(this.roomCode);
             })
-            .setDepth(2); // Asegurar que el texto esté sobre el fondo
+            .setDepth(2); 
     },
 
     joinRoom: function (roomCode) {
@@ -696,6 +699,12 @@ var joinRoomScene = {
             this.dataChannel = dataChannel;
             console.log("WebRTC connection and data channel are ready");
         });
+
+		socket.on('startGame', () => {
+			console.log("Game starting...");
+			game.scene.stop("joinRoomScene");
+			game.scene.start("playScene");
+		});
     },
 
     handleMessage: function (message) {

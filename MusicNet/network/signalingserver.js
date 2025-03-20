@@ -1,5 +1,4 @@
-
-export function setupDataChannel(peerConnection, onMessageReceived) {
+function setupDataChannel(peerConnection, onMessageReceived) {
     const dataChannel = peerConnection.createDataChannel('gameData');
 
     dataChannel.onopen = () => {
@@ -15,7 +14,7 @@ export function setupDataChannel(peerConnection, onMessageReceived) {
     return dataChannel;
 }
 
-export function sendData(dataChannel, data) {
+function sendData(dataChannel, data) {
     if (dataChannel.readyState === 'open') {
         dataChannel.send(JSON.stringify(data));
     } else {
