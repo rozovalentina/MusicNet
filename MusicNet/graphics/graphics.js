@@ -135,17 +135,17 @@ var playPauseButton;
 var settingsButton;
 
 const multiplayerState = {
-    connected: false,
-    retryCount: 0,
-    sequenceNumber: 1,
-    isHost: false,
-    lastLatency: 0,
-    stats: {
-        messagesSent: 0,
-        messagesReceived: 0,
-        totalBytesSent: 0,
-        lastError: null
-    }
+	connected: false,
+	retryCount: 0,
+	sequenceNumber: 1,
+	isHost: false,
+	lastLatency: 0,
+	stats: {
+		messagesSent: 0,
+		messagesReceived: 0,
+		totalBytesSent: 0,
+		lastError: null
+	}
 };
 
 function initVariables() {
@@ -699,31 +699,35 @@ var createRoomScene = {
 		socket.on('userJoined', (userId) => {
 			console.log(`User ${userId} joined the room`);
 		});
-		// Start game
-		const startGameListener = (roomCode) =>{
-			console.log ("Starting game for room:", roomCode);
-			socket.off('startGame', startGameListener);
+		socket.on("connect", () => {
+			console.log("Cliente conectado con ID:", socket.id);
+		});
+		
+		socket.on("startGame", (roomCode) => {
+			console.log("Evento recibido en cliente: startGame", roomCode);
+		});
+		// Start game directly using socket.on without creating a separate listener function
+		socket.on('startGame', (roomCode) => {
+			console.log("Starting game for room:", roomCode);
 			game.scene.stop("createRoomScene");
 			game.scene.stop("multiplayerScene");
 			game.scene.stop("settingsScene");
-					//  WebRTC inicialitize
-		this.peerConnection = initializeWebRTC(roomCode, (PeerConnection) => {
-			console.log(" WebRTC connection");
-			this.dataChannel = setupDataChannel(PeerConnection,(message)=> {
-				console.log("Message in scene:", message);
+
+			this.peerConnection = initializeWebRTC(roomCode, ([pc]) => {
+				console.log(" WebRTC connection");
+				this.dataChannel = setupDataChannel(pc,this.handleMessage.bind(this))
 			});
+			game.scene.start("playSceneMultiplayer",{ roomCode: roomCode});
 		});
-			game.scene.start("playSceneMultiplayer", { roomCode: roomCode , isHost:true, peerConnection :peerConnection, dataChannel :dataChannel});
-		}
-		socket.on('startGame', startGameListener);
+
 		// Manage Error
 		socket.on('roomExists', () => {
 			console.log("Room already exists.");
-	});
+		});
 	},
-	handleMessage: function(message) {
-        console.log("Mensaje recibido:", message);
-    }
+	handleMessage: function (message) {
+		console.log("Mensaje recibido:", message);
+	}
 };
 game.scene.add("createRoomScene", createRoomScene);
 
@@ -781,16 +785,16 @@ var joinRoomScene = {
 
 		console.log("Attempting to join room:", roomCode);
 		socket.emit('joinRoom', roomCode);
-    
+
 		socket.once('roomNotFound', () => {
 			console.log("Room not Found");
 		});
-		
+
 		socket.once('roomFull', () => {
 			console.log("Room is Full");
 		});
 
-        // Handle successful room joining
+		// Handle successful room joining
 		socket.once('userJoined', (userId) => {
 			console.log("Joined room successfully:", roomCode);
 		});
@@ -799,14 +803,13 @@ var joinRoomScene = {
 			game.scene.stop("joinRoomScene");
 			game.scene.stop("multiplayerScene");
 			game.scene.stop("settingsScene");
-					   // Initialize WebRTC connection
-					   this.peerConnection = initializeWebRTC(roomCode, (PeerConnection) => {
-						console.log("WebRTC connection established");
-						this.dataChannel = setupDataChannel(PeerConnection,(message)=> {
-							console.log("Message in scene:", message);
-						});
-					});
-			game.scene.start("playSceneMultiplayer", { roomCode: roomCode, isHost:false, peerConnection :peerConnection, dataChannel :dataChannel });
+
+			// Initialize WebRTC connection
+			this.peerConnection = initializeWebRTC(roomCode, (pc) => {
+				console.log("WebRTC connection established");
+			});
+			console.log("Funcionaaaa");
+			game.scene.start("playSceneMultiplayer",{ roomCode: roomCode});
 		});
 	},
 };
@@ -1499,6 +1502,7 @@ var playSceneMultiplayer = {
 		}
 	},
 	create: function (data) {
+		console.log("Pantalla multijugador");
 		if (!data || !data.roomCode) {
 			console.error("No room ID provided");
 			return;
@@ -1510,13 +1514,13 @@ var playSceneMultiplayer = {
 			this.dataChannel = data.dataChannel;
 			multiplayerState.connected = true;
 		} else {
-			this.initializeWebRTCBackup();
-    }
-	this.scores = {
-        player: 0,
-        opponent: 0,
-        lastUpdate: 0
-    };
+			//this.initializeWebRTCBackup();
+		}
+		this.scores = {
+			player: 0,
+			opponent: 0,
+			lastUpdate: 0
+		};
 		initVariables();
 		gameContext = this;
 		this.cameras.main.fadeIn(500, 255, 255, 255);
@@ -1599,9 +1603,9 @@ var playSceneMultiplayer = {
 		collider = this.physics.add.collider(player, platforms, platformsColliderCallback);
 		scoreText = this.add.text(16, 16, 'Score: ' + score, { fontSize: fontSize + 'px', fill: fontColor, fontFamily: "Arial" });
 		opponentScoreText = this.add.text(16, 40, 'Opponent: 0', { fontSize: fontSize + 'px', fill: fontColor, fontFamily: "Arial" });
-	    socket.on('opponentScoreUpdate', this.handleOpponentUpdate.bind(this));
+		socket.on('opponentScoreUpdate', this.handleOpponentUpdate.bind(this));
 		socket.on('playerDisconnected', this.handleDisconnection.bind(this));
-    	socket.on('reconnect', this.handleReconnection.bind(this));
+		socket.on('reconnect', this.handleReconnection.bind(this));
 		this.startTime = this.time.now / 1000;
 		this.timeText = this.add.text(200, 16, 'Time: 0s', { fontSize: fontSize + 'px', fill: fontColor, fontFamily: "Arial" });
 		referenceNoteButton = this.add.text(resolution[0], playerHeight * 2.2, 'Play Reference', { fontSize: fontSize + 'px', fill: fontColor, fontFamily: "Arial" });
@@ -1751,17 +1755,17 @@ var playSceneMultiplayer = {
 					score++;
 					this.scores.player = score;
 					scoreText.setText('Score: ' + score);
-					socket.emit('updateScore', { 
-						roomId: this.currentRoomId, 
-						score: score 
-					});					
+					socket.emit('updateScore', {
+						roomId: this.currentRoomId,
+						score: score
+					});
 					if (this.dataChannel && this.dataChannel.readyState === 'open') {
-						sendData(this.dataChannel, { 
-							type: "scoreUpdate", 
+						sendData(this.dataChannel, {
+							type: "scoreUpdate",
 							score: score,
 							timestamp: Date.now()
 						});
-					}					statusText.setText("Sing!");
+					} statusText.setText("Sing!");
 					tween = gameContext.add.tween({ targets: statusText, ease: 'Sine.easeInOut', duration: 300, delay: 0, alpha: { getStart: () => 1, getEnd: () => 0 } });
 					tween2 = gameContext.add.tween({ targets: statusText, ease: 'Sine.easeInOut', duration: 300, delay: 0, alpha: { getStart: () => 1, getEnd: () => 0 } });
 					tween.setCallback(function () {
@@ -1884,15 +1888,15 @@ var playSceneMultiplayer = {
 			}
 		}
 	},
-	initializeWebRTCBackup: function() {
+	initializeWebRTCBackup: function () {
 		if (multiplayerState.connectionRetries >= multiplayerState.maxRetries) {
 			console.warn("Max connection retries reached");
 			return;
 		}
-		
+
 		multiplayerState.connectionRetries++;
 		console.log(`Attempting WebRTC connection (try ${multiplayerState.connectionRetries})`);
-		
+
 		this.peerConnection = initializeWebRTC(this.currentRoomId, (pc) => {
 			this.dataChannel = setupDataChannel(pc, (message) => {
 				if (message.type === 'scoreUpdate') {
@@ -1902,12 +1906,12 @@ var playSceneMultiplayer = {
 			multiplayerState.connected = true;
 		});
 	},
-	
-	handleOpponentUpdate: function(data) {
+
+	handleOpponentUpdate: function (data) {
 		if (data.roomId === this.currentRoomId) {
 			this.scores.opponent = data.score;
 			this.opponentScoreText.setText(`RIVAL: ${data.score}`);
-			
+
 			// Sincronización adicional por WebRTC si está disponible
 			if (this.dataChannel && this.dataChannel.readyState === 'open') {
 				sendData(this.dataChannel, {
@@ -1918,24 +1922,24 @@ var playSceneMultiplayer = {
 			}
 		}
 	},
-	
-	handleDisconnection: function() {
-		const warningText = this.add.text(resolution[0]/2, resolution[1]/2, 
-			"OPPONENT DISCONNECTED\nReturning to menu...", 
+
+	handleDisconnection: function () {
+		const warningText = this.add.text(resolution[0] / 2, resolution[1] / 2,
+			"OPPONENT DISCONNECTED\nReturning to menu...",
 			{
 				font: "bold 32px Arial",
 				fill: "#FF5555",
 				align: "center",
 				backgroundColor: "#333"
 			}).setOrigin(0.5);
-		
+
 		setTimeout(() => {
 			game.scene.stop("playSceneMultiplayer");
 			game.scene.start("multiplayerScene");
 		}, 3000);
 	},
-	
-	handleReconnection: function() {
+
+	handleReconnection: function () {
 		// Re-enviar el puntaje actual al reconectar
 		if (this.scores.player > 0) {
 			socket.emit('updateScore', {
@@ -1943,16 +1947,16 @@ var playSceneMultiplayer = {
 				score: this.scores.player
 			});
 		}
-		
+
 		// Mostrar notificación al jugador
-		const reconnectText = this.add.text(resolution[0]/2, 100, 
-			"Connection reestablished!", 
+		const reconnectText = this.add.text(resolution[0] / 2, 100,
+			"Connection reestablished!",
 			{
 				font: "bold 24px Arial",
 				fill: "#4CAF50",
 				backgroundColor: "#333"
 			}).setOrigin(0.5);
-		
+
 		this.tweens.add({
 			targets: reconnectText,
 			alpha: 0,
