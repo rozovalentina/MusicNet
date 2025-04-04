@@ -17,8 +17,6 @@ function initializeWebRTC(roomCode, onConnectionEstablished) {
                     'stun:stun2.l.google.com:19302'
                 ] 
             },
-            // Agrega tus servidores TURN aquí si los tienes
-            // { urls: 'turn:your-turn-server.com', username: 'user', credential: 'pass' }
         ],
         iceTransportPolicy: 'all',
         bundlePolicy: 'max-bundle',

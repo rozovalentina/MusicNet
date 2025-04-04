@@ -1,4 +1,3 @@
-//Maneja la representación visual del juego.
 //Settings
 var resolution = [window.innerWidth, window.innerHeight]
 var gravity = 850;
@@ -207,7 +206,7 @@ function initVariables() {
 	endedPauseAnimation = false;
 	initialPauseStability = 7; //Increase-> decrease stability; decrease-> increase stability but increase the delay of wings
 
-	//ScaleMapping inizialization
+	//ScaleMapping initialization
 	//changeNoteReference("C3")
 	changeScaleReference(scales[gameLevel]);
 
@@ -699,27 +698,21 @@ var createRoomScene = {
 		socket.on('userJoined', (userId) => {
 			console.log(`User ${userId} joined the room`);
 		});
-		socket.on("connect", () => {
-			console.log("Cliente conectado con ID:", socket.id);
-		});
-		
-		socket.on("startGame", (roomCode) => {
-			console.log("Evento recibido en cliente: startGame", roomCode);
-		});
-		// Start game directly using socket.on without creating a separate listener function
-		socket.on('startGame', (roomCode) => {
+		// Start game
+		const startGameListener = (roomCode) => {
 			console.log("Starting game for room:", roomCode);
+			socket.off('startGame', startGameListener);
 			game.scene.stop("createRoomScene");
 			game.scene.stop("multiplayerScene");
 			game.scene.stop("settingsScene");
-
+			//  WebRTC inicialitize
 			this.peerConnection = initializeWebRTC(roomCode, ([pc]) => {
 				console.log(" WebRTC connection");
-				this.dataChannel = setupDataChannel(pc,this.handleMessage.bind(this))
+				this.dataChannel = setupDataChannel(pc, this.handleMessage.bind(this))
 			});
-			game.scene.start("playSceneMultiplayer",{ roomCode: roomCode});
-		});
-
+			game.scene.start("playSceneMultiplayer");
+		};
+		socket.on('startGame', startGameListener);
 		// Manage Error
 		socket.on('roomExists', () => {
 			console.log("Room already exists.");
@@ -803,13 +796,14 @@ var joinRoomScene = {
 			game.scene.stop("joinRoomScene");
 			game.scene.stop("multiplayerScene");
 			game.scene.stop("settingsScene");
-
 			// Initialize WebRTC connection
 			this.peerConnection = initializeWebRTC(roomCode, (pc) => {
 				console.log("WebRTC connection established");
+				this.dataChannel = setupDataChannel(PeerConnection, (message) => {
+					console.log("Message in scene:", message);
+				});
 			});
-			console.log("Funcionaaaa");
-			game.scene.start("playSceneMultiplayer",{ roomCode: roomCode});
+			game.scene.start("playSceneMultiplayer", { roomCode: roomCode, isHost: false, peerConnection: peerConnection, dataChannel: dataChannel });
 		});
 	},
 };
@@ -820,7 +814,7 @@ function loadSettings() {
 }
 
 var playScene = {
-	preload: function () {/*
+	preload: function () {
 		//Needed to be set here to set the player dimension correctly
 		playerWidth = 19;
 		playerHeight = 48;
@@ -830,9 +824,9 @@ var playScene = {
 		this.load.spritesheet('player-fly', 'assets/player_fly.png', { frameWidth: 28, frameHeight: playerHeight });
 		this.load.image('play', 'assets/play.png');
 		this.load.image('pause', 'assets/pause.png');
-		this.load.image('settings', 'assets/settings.png');*/
+		this.load.image('settings', 'assets/settings.png');
 	},
-	create: function () {/*
+	create: function () {
 
 		initVariables();
 		gameContext = this;
@@ -949,11 +943,121 @@ var playScene = {
 
 		gridLength = measurePlatformWidth;
 		numberOfInitialMeasures = resolution[0] / measurePlatformWidth;
-		for (i = 0; i < numberOfInitialMeasures; i++) {
-			lastGrid = measureGrids.create((gameInitialX - (playerWidth / 2) + (gridLength / 2)) + (gridLength * i) - platformInitialPlayerOffset, (resolution[1] / 2) + playerHeight, 'grid-texture');
-			lastGrid.setDepth(-1);
-			lastGrid.progressiveNumber = 0; //zero identifies all the grids created when the game is started
-		}
+
+// Obtener configuración de escala desde settingsScene
+const currentScale = modalScaleName; // 'ionian', 'dorian', etc.
+const baseNote = firstNote; // Ej: 'C4'
+const baseOctave = parseInt(baseNote.slice(-1));
+const noteLetter = baseNote.replace(/\d/g, ''); // Extrae solo las letras (C, C#, etc.)
+
+// Configuración de escalas modales mejorada
+const modalScales = {
+    'ionian':     [0, 2, 4, 5, 7, 9, 11],  // Escala mayor
+    'dorian':     [0, 2, 3, 5, 7, 9, 10],
+    'phrygian':   [0, 1, 3, 5, 7, 8, 10],
+    'lydian':     [0, 2, 4, 6, 7, 9, 11],
+    'mixolydian': [0, 2, 4, 5, 7, 9, 10],
+    'aeolian':    [0, 2, 3, 5, 7, 8, 10],  // Escala menor natural
+    'locrian':    [0, 1, 3, 5, 6, 8, 10]
+};
+
+const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+
+// Función para generar las notas de la escala actual
+function getScaleNotes() {
+    const scaleIntervals = modalScales[currentScale];
+    const baseIndex = noteNames.indexOf(noteLetter);
+    let notes = [];
+    
+    // Generar 1 octavas de la escala
+    for (let oct = 0; oct < 1; oct++) {
+        scaleIntervals.forEach(interval => {
+            const noteIndex = (baseIndex + interval) % 12;
+            const currentOctave = baseOctave + oct;
+            notes.push({
+                name: noteNames[noteIndex],
+                octave: currentOctave,
+                fullName: noteNames[noteIndex] + currentOctave,
+                isSharp: noteNames[noteIndex].includes('#')
+            });
+        });
+    }
+    
+    return notes;
+}
+
+const scaleNotes = getScaleNotes();
+
+// Crear el grid con referencias de piano
+for (let i = 0; i < numberOfInitialMeasures; i++) {
+    const gridX = (gameInitialX - (playerWidth / 2) + (gridLength / 2)) + (gridLength * i) - platformInitialPlayerOffset;
+    const gridY = (resolution[1] / 2) + playerHeight;
+    
+    lastGrid = measureGrids.create(gridX, gridY, 'grid-texture');
+    lastGrid.setDepth(-1);
+    lastGrid.progressiveNumber = 0;
+    
+    // Añadir referencias de piano solo en la primera columna
+    if (i === 0) {
+        const totalHeight = lastGrid.displayHeight;
+        const keyHeight = totalHeight / scaleNotes.length;
+        const pianoWidth = 60; // Ancho reducido para las teclas
+        
+        // Posición inicial (pegado al borde izquierdo del grid)
+        const pianoStartX = gridX - lastGrid.displayWidth/2;
+        const pianoStartY = gridY - lastGrid.displayHeight/2;
+        
+        // Añadir título de la escala
+        const scaleTitle = this.add.text(
+            pianoStartX + 5,
+            pianoStartY - 20,
+            `${noteLetter} ${currentScale}`,
+            { font: '14px Arial', fill: '#6C584C' }
+        );
+        scaleTitle.setDepth(0);
+        
+        // Añadir notas de la escala
+        scaleNotes.forEach((note, index) => {
+			const yPos = pianoStartY + (keyHeight * index );
+            // Crear fondo de la tecla
+            const keyBg = this.add.rectangle(
+                pianoStartX,
+                yPos,
+                pianoWidth,
+                keyHeight ,
+                note.isSharp ? 0x333333 : 0xFFFFFF
+            ).setOrigin(0,0);
+            ;
+            
+            // Crear texto de la nota
+            const noteText = this.add.text(
+               pianoStartX + pianoWidth / 2,
+				yPos + keyHeight / 2,
+                note.fullName,
+                { 
+                    font: '12px Arial', 
+                    fill: note.isSharp ? '#FFFFFF' : '#000000',
+                    align: 'center'
+                }
+            );
+            noteText.setOrigin(0.5);
+            
+            // Hacer la nota interactiva
+            noteText.setInteractive();
+            noteText.on('pointerdown', () => {
+                playNote(note.fullName, 1.0);
+                
+                // Efecto visual al tocar
+                this.tweens.add({
+                    targets: keyBg,
+                    fillColor: note.isSharp ? 0x555555 : 0xDDDDDD,
+                    duration: 100,
+                    yoyo: true
+                });
+            });
+        });
+    }
+}
 
 
 		//Creation of collider between the player and the platforms, with a callback function
@@ -1032,10 +1136,10 @@ var playScene = {
 
 		//SETTING OF GAME STATUS
 		//------------------------------------------------------------------------------------------------------
-		gameStatus = "Started";*/
+		gameStatus = "Started";
 	},
 
-	update: function () {/*
+	update: function () {
 		let elapsedTime = Math.floor((this.time.now / 1000) - this.startTime);
 		let minutes = Math.floor(elapsedTime / 60);
 		let seconds = elapsedTime % 60;
@@ -1353,7 +1457,7 @@ var playScene = {
 				}
 				this.physics.world.colliders.destroy();
 			}
-		}*/
+		}
 	}
 }
 game.scene.add("playScene", playScene);
@@ -1485,7 +1589,7 @@ var gameoverScene = {
 }
 game.scene.add("gameoverScene", gameoverScene);
 
-var playSceneMultiplayer = {
+/*var playSceneMultiplayer = {
 	preload: function () {
 		playerWidth = 19;
 		playerHeight = 48;
@@ -1502,7 +1606,6 @@ var playSceneMultiplayer = {
 		}
 	},
 	create: function (data) {
-		console.log("Pantalla multijugador");
 		if (!data || !data.roomCode) {
 			console.error("No room ID provided");
 			return;
@@ -1514,7 +1617,7 @@ var playSceneMultiplayer = {
 			this.dataChannel = data.dataChannel;
 			multiplayerState.connected = true;
 		} else {
-			//this.initializeWebRTCBackup();
+			this.initializeWebRTCBackup();
 		}
 		this.scores = {
 			player: 0,
@@ -1966,7 +2069,7 @@ var playSceneMultiplayer = {
 		});
 	}
 }
-game.scene.add("playSceneMultiplayer", playSceneMultiplayer);
+game.scene.add("playSceneMultiplayer", playSceneMultiplayer); */
 
 
 function createPlatformTexture(context, width, height, levelDuration, color = platformColor) {
