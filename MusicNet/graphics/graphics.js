@@ -702,9 +702,9 @@ var createRoomScene = {
 		socket.on("connect", () => {
 			console.log("Cliente conectado con ID:", socket.id);
 		});
-		
+
 		socket.on("startGame", (roomCode) => {
-			console.log("Evento recibido en cliente: startGame", roomCode);
+			console.log("Evento recibido en cliente: startGame", roomCode);
 		});
 		// Start game directly using socket.on without creating a separate listener function
 		socket.on('startGame', (roomCode) => {
@@ -715,9 +715,9 @@ var createRoomScene = {
 
 			this.peerConnection = initializeWebRTC(roomCode, ([pc]) => {
 				console.log(" WebRTC connection");
-				this.dataChannel = setupDataChannel(pc,this.handleMessage.bind(this))
+				this.dataChannel = setupDataChannel(pc, this.handleMessage.bind(this))
 			});
-			game.scene.start("playSceneMultiplayer",{ roomCode: roomCode});
+			game.scene.start("playSceneMultiplayer", { roomCode: roomCode, isHost: true, peerConnection: this.peerConnection, dataChannel: this.dataChannel });
 		});
 
 		// Manage Error
@@ -809,7 +809,7 @@ var joinRoomScene = {
 				console.log("WebRTC connection established");
 			});
 			console.log("Funcionaaaa");
-			game.scene.start("playSceneMultiplayer",{ roomCode: roomCode});
+			game.scene.start("playSceneMultiplayer", { roomCode: roomCode, isHost: false, peerConnection: this.peerConnection, dataChannel: this.dataChannel });
 		});
 	},
 };
@@ -1495,27 +1495,180 @@ var playSceneMultiplayer = {
 		this.load.image('pause', 'assets/pause.png');
 		this.load.image('settings', 'assets/settings.png');
 	},
-	handleMessage: function (message) {
-		if (message.type === "scoreUpdate") {
-			console.log("Opponent Score Updated via WebRTC:", message.score);
-			this.opponentScoreText.setText('Opponent: ' + message.score);
-		}
-	},
-	create: function (data) {
-		console.log("Pantalla multijugador");
-		if (!data || !data.roomCode) {
-			console.error("No room ID provided");
-			return;
-		}
-		this.currentRoomId = data.roomCode;
-		this.isHost = data.isHost || false;
-		if (data.peerConnection && data.dataChannel) {
-			this.peerConnection = data.peerConnection;
-			this.dataChannel = data.dataChannel;
-			multiplayerState.connected = true;
-		} else {
-			//this.initializeWebRTCBackup();
-		}
+	create: function(data) {
+        console.log("Pantalla multijugador");
+        if (!data || !data.roomCode) {
+            console.error("No room ID provided");
+            return;
+        }
+
+        // Guardar referencia al contexto
+        const scene = this;
+        this.currentRoomId = data.roomCode;
+        this.isHost = data.isHost || false;
+        
+        //  estado de multiplayer
+        let multiplayerState ={
+			isHost: this.isHost,
+			connected: false,
+			retryCount: 0,
+			maxRetries: 3,
+		};
+
+        // Configurar handlers del DataChannel
+        this.setupDataChannelHandlers = function() {
+            if (!scene.dataChannel) return;
+            
+            scene.dataChannel.onopen = () => {
+                console.log("[DataChannel] Canal abierto - ReadyState:", scene.dataChannel.readyState);
+                multiplayerState.connected = true;
+                
+                if (scene.scores && scene.scores.player) {
+                    scene.sendData({
+                        type: "scoreUpdate",
+                        score: scene.scores.player,
+                        timestamp: Date.now()
+                    });
+                }
+            };
+
+            scene.dataChannel.onclose = () => {
+                console.log("[DataChannel] Canal cerrado");
+                multiplayerState.connected = false;
+            };
+
+            scene.dataChannel.onerror = (error) => {
+                console.error("[DataChannel] Error:", error);
+            };
+
+            scene.dataChannel.onmessage = (event) => {
+                try {
+                    const message = JSON.parse(event.data);
+                    scene.handleMessage(message);
+                } catch (error) {
+                    console.error("[DataChannel] Error al parsear:", error);
+                }
+            };
+        };
+
+        // Configurar handlers WebRTC
+        this.setupWebRTCHandlers = function() {
+            scene.webrtcHandlers = {
+                offer: async (offer) => {
+                    console.log("[WebRTC] Oferta recibida");
+                    try {
+                        await scene.peerConnection.setRemoteDescription(offer);
+                        const answer = await scene.peerConnection.createAnswer();
+                        await scene.peerConnection.setLocalDescription(answer);
+                        socket.emit('answer', scene.currentRoomId, answer);
+                    } catch (error) {
+                        console.error("[WebRTC] Error al procesar oferta:", error);
+                    }
+                },
+                answer: async (answer) => {
+                    console.log("[WebRTC] Respuesta recibida");
+                    try {
+                        await scene.peerConnection.setRemoteDescription(answer);
+                    } catch (error) {
+                        console.error("[WebRTC] Error al procesar respuesta:", error);
+                    }
+                },
+                iceCandidate: async (candidate) => {
+                    try {
+                        await scene.peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+                    } catch (error) {
+                        console.error("[WebRTC] Error al agregar ICE candidate:", error);
+                    }
+                }
+            };
+
+            socket.on('offer', scene.webrtcHandlers.offer);
+            socket.on('answer', scene.webrtcHandlers.answer);
+            socket.on('iceCandidate', scene.webrtcHandlers.iceCandidate);
+        };
+
+        // Función para crear oferta
+        this.createOffer = async function() {
+            try {
+                console.log("[WebRTC] Creando oferta...");
+                const offer = await scene.peerConnection.createOffer();
+                await scene.peerConnection.setLocalDescription(offer);
+                socket.emit('offer', scene.currentRoomId, offer);
+                console.log("[WebRTC] Oferta enviada");
+            } catch (error) {
+                console.error("[WebRTC] Error al crear oferta:", error);
+            }
+        };
+
+        // Función para enviar datos
+        this.sendData = function(data) {
+            if (scene.dataChannel && scene.dataChannel.readyState === 'open') {
+                try {
+                    scene.dataChannel.send(JSON.stringify(data));
+                } catch (error) {
+                    console.error("[DataChannel] Error al enviar datos:", error);
+                }
+            } else {
+                console.warn("[DataChannel] Canal no disponible o no abierto");
+            }
+        };
+
+        // Manejar conexión WebRTC
+        if (data.peerConnection && data.dataChannel) {
+            // Reutilizar conexión existente
+            console.log("[WebRTC] Reutilizando conexión existente");
+            this.peerConnection = data.peerConnection;
+            this.dataChannel = data.dataChannel;
+            this.setupDataChannelHandlers();
+            multiplayerState.connected = true;
+        } else {
+            // Nueva conexión
+            console.log("[WebRTC] Inicializando nueva conexión");
+            this.peerConnection = new RTCPeerConnection({
+                iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+            });
+
+            // Configurar eventos básicos
+            this.peerConnection.oniceconnectionstatechange = () => {
+                console.log(`[WebRTC] ICE State: ${this.peerConnection.iceConnectionState}`);
+            };
+
+            this.peerConnection.onconnectionstatechange = () => {
+                console.log(`[WebRTC] Connection State: ${this.peerConnection.connectionState}`);
+            };
+
+            this.peerConnection.onicecandidate = (event) => {
+                if (event.candidate) {
+                    console.log(`[WebRTC] Enviando ICE Candidate`);
+                    socket.emit('iceCandidate', this.currentRoomId, event.candidate);
+                }
+            };
+
+            // Solo el host crea el DataChannel inicial
+            if (this.isHost) {
+                console.log("[WebRTC] Host - Creando DataChannel");
+                this.dataChannel = this.peerConnection.createDataChannel('gameData', {
+                    ordered: true,
+                    maxRetransmits: 3
+                });
+                this.setupDataChannelHandlers();
+            }
+
+            // Handler para cuando el receptor obtiene el DataChannel
+            this.peerConnection.ondatachannel = (event) => {
+                console.log("[WebRTC] DataChannel recibido");
+                this.dataChannel = event.channel;
+                this.setupDataChannelHandlers();
+                multiplayerState.connected = true;
+            };
+
+            this.setupWebRTCHandlers();
+            
+            // Solo el host crea la oferta inicial
+            if (this.isHost) {
+                this.createOffer();
+            }
+        }
 		this.scores = {
 			player: 0,
 			opponent: 0,
@@ -1591,21 +1744,140 @@ var playSceneMultiplayer = {
 		createPlatformTexture(this, measurePlatformWidth * levelDuration, 1, levelDuration);
 		scalePlatform = platforms.create(playerFixedX, levelHeight, 'platform' + levelDuration + 1);
 		scalePlatform.setVisible(false); //Hide texture
-		createGridTexture(this, measurePlatformWidth, timeSignature);
-		measureGrids = this.physics.add.staticGroup();
+	//GRID GENERATION
+		//------------------------------------------------------------------------------------------------------
+		createGridTexture(this, measurePlatformWidth, timeSignature); //Draw grid texture
+		measureGrids = this.physics.add.staticGroup(); //Grids empty group creation
+
 		gridLength = measurePlatformWidth;
 		numberOfInitialMeasures = resolution[0] / measurePlatformWidth;
-		for (i = 0; i < numberOfInitialMeasures; i++) {
-			lastGrid = measureGrids.create((gameInitialX - (playerWidth / 2) + (gridLength / 2)) + (gridLength * i) - platformInitialPlayerOffset, (resolution[1] / 2) + playerHeight, 'grid-texture');
-			lastGrid.setDepth(-1);
-			lastGrid.progressiveNumber = 0;
-		}
+
+// Obtener configuración de escala desde settingsScene
+const currentScale = modalScaleName; // 'ionian', 'dorian', etc.
+const baseNote = firstNote; // Ej: 'C4'
+const baseOctave = parseInt(baseNote.slice(-1));
+const noteLetter = baseNote.replace(/\d/g, ''); // Extrae solo las letras (C, C#, etc.)
+
+// Configuración de escalas modales mejorada
+const modalScales = {
+    'ionian':     [0, 2, 4, 5, 7, 9, 11],  // Escala mayor
+    'dorian':     [0, 2, 3, 5, 7, 9, 10],
+    'phrygian':   [0, 1, 3, 5, 7, 8, 10],
+    'lydian':     [0, 2, 4, 6, 7, 9, 11],
+    'mixolydian': [0, 2, 4, 5, 7, 9, 10],
+    'aeolian':    [0, 2, 3, 5, 7, 8, 10],  // Escala menor natural
+    'locrian':    [0, 1, 3, 5, 6, 8, 10]
+};
+
+const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+
+// Función para generar las notas de la escala actual
+function getScaleNotes() {
+    const scaleIntervals = modalScales[currentScale];
+    const baseIndex = noteNames.indexOf(noteLetter);
+    let notes = [];
+    
+    // Generar 1 octavas de la escala
+    for (let oct = 0; oct < 1; oct++) {
+        scaleIntervals.forEach(interval => {
+            const noteIndex = (baseIndex + interval) % 12;
+            const currentOctave = baseOctave + oct;
+            notes.push({
+                name: noteNames[noteIndex],
+                octave: currentOctave,
+                fullName: noteNames[noteIndex] + currentOctave,
+                isSharp: noteNames[noteIndex].includes('#')
+            });
+        });
+    }
+    
+    return notes;
+}
+
+const scaleNotes = getScaleNotes();
+
+// Crear el grid con referencias de piano
+for (let i = 0; i < numberOfInitialMeasures; i++) {
+    const gridX = (gameInitialX - (playerWidth / 2) + (gridLength / 2)) + (gridLength * i) - platformInitialPlayerOffset;
+    const gridY = (resolution[1] / 2) + playerHeight;
+    
+    lastGrid = measureGrids.create(gridX, gridY, 'grid-texture');
+    lastGrid.setDepth(-1);
+    lastGrid.progressiveNumber = 0;
+    
+    // Añadir referencias de piano solo en la primera columna
+    if (i === 0) {
+        const totalHeight = lastGrid.displayHeight;
+        const keyHeight = totalHeight / scaleNotes.length;
+        const pianoWidth = 60; // Ancho reducido para las teclas
+        
+        // Posición inicial (pegado al borde izquierdo del grid)
+        const pianoStartX = gridX - lastGrid.displayWidth/2;
+        const pianoStartY = gridY - lastGrid.displayHeight/2;
+        
+        // Añadir título de la escala
+        const scaleTitle = this.add.text(
+            pianoStartX + 5,
+            pianoStartY - 20,
+            `${noteLetter} ${currentScale}`,
+            { font: '14px Arial', fill: '#6C584C' }
+        );
+        scaleTitle.setDepth(0);
+        
+        // Añadir notas de la escala
+        scaleNotes.forEach((note, index) => {
+			const yPos = pianoStartY + (keyHeight * index );
+            // Crear fondo de la tecla
+            const keyBg = this.add.rectangle(
+                pianoStartX,
+                yPos,
+                pianoWidth,
+                keyHeight ,
+                note.isSharp ? 0x333333 : 0xFFFFFF
+            ).setOrigin(0,0);
+            ;
+            
+            // Crear texto de la nota
+            const noteText = this.add.text(
+               pianoStartX + pianoWidth / 2,
+				yPos + keyHeight / 2,
+                note.fullName,
+                { 
+                    font: '12px Arial', 
+                    fill: note.isSharp ? '#FFFFFF' : '#000000',
+                    align: 'center'
+                }
+            );
+            noteText.setOrigin(0.5);
+            
+            // Hacer la nota interactiva
+            noteText.setInteractive();
+            noteText.on('pointerdown', () => {
+                playNote(note.fullName, 1.0);
+                
+                // Efecto visual al tocar
+                this.tweens.add({
+                    targets: keyBg,
+                    fillColor: note.isSharp ? 0x555555 : 0xDDDDDD,
+                    duration: 100,
+                    yoyo: true
+                });
+            });
+        });
+    }
+}
+
+
+		//Creation of collider between the player and the platforms, with a callback function
+		collider = this.physics.add.collider(player, platforms, platformsColliderCallback);
+
+
 		collider = this.physics.add.collider(player, platforms, platformsColliderCallback);
 		scoreText = this.add.text(16, 16, 'Score: ' + score, { fontSize: fontSize + 'px', fill: fontColor, fontFamily: "Arial" });
 		opponentScoreText = this.add.text(16, 40, 'Opponent: 0', { fontSize: fontSize + 'px', fill: fontColor, fontFamily: "Arial" });
-		socket.on('opponentScoreUpdate', this.handleOpponentUpdate.bind(this));
-		socket.on('playerDisconnected', this.handleDisconnection.bind(this));
-		socket.on('reconnect', this.handleReconnection.bind(this));
+		socket.on('opponentScoreUpdate', this.handleOpponentUpdate);
+		socket.on('playerDisconnected', this.handleDisconnection);
+		socket.on('reconnect', this.handleReconnection);
 		this.startTime = this.time.now / 1000;
 		this.timeText = this.add.text(200, 16, 'Time: 0s', { fontSize: fontSize + 'px', fill: fontColor, fontFamily: "Arial" });
 		referenceNoteButton = this.add.text(resolution[0], playerHeight * 2.2, 'Play Reference', { fontSize: fontSize + 'px', fill: fontColor, fontFamily: "Arial" });
@@ -1653,319 +1925,326 @@ var playSceneMultiplayer = {
 		});
 		gameStatus = "Started";
 	},
-	update: function () {
-		let elapsedTime = Math.floor((this.time.now / 1000) - this.startTime);
-		let minutes = Math.floor(elapsedTime / 60);
-		let seconds = elapsedTime % 60;
-		let formattedTime = (minutes < 10 ? '0' : '') + minutes + ":" + (seconds < 10 ? '0' : '') + seconds;
-		this.timeText.setText('Time: ' + formattedTime);
-		if (game.scene.isActive("playSceneMultiplayer")) {
-			measureGrids.getChildren().forEach(function (p) {
-				if (p.x < -p.width / 2)
-					p.destroy();
-			})
-			measureGrids.getChildren().forEach(function (p) {
-				p.x = p.x - platformVelocity;
-				p.body.x = p.body.x - platformVelocity;
-			});
-			if (lastGrid.x <= resolution[0] - measurePlatformWidth / 2) { //When the platform is completely on the screen, generate a new platform
-				prevGridNumber = lastGrid.progressiveNumber;
-				if (lastGrid.progressiveNumber == 0) { //The first to be created with update function
-					lastGrid = measureGrids.create(resolution[0] + (measurePlatformWidth / 2) - 1, (resolution[1] / 2) + playerHeight, 'grid-texture');
-					lastGrid.setDepth(-1);
-				}
-				else {
-					lastGrid = measureGrids.create(resolution[0] + (measurePlatformWidth / 2), (resolution[1] / 2) + playerHeight, 'grid-texture');
-					lastGrid.setDepth(-1);
-				}
-				lastGrid.progressiveNumber = prevGridNumber + 1;
-			}
-			if (lastCreatedPlatform.x <= resolution[0] - lastCreatedPlatform.width / 2) { //When the platform is completely on the screen, generate a new platform
-				newLevel = generateLevel();
-				levelValue = newLevel[0];
-				levelHeight = newLevel[1];
-				levelDuration = newLevel[2];
-				createPlatformTexture(this, measurePlatformWidth * levelDuration, platformHeight, levelDuration);
-				lastCreatedPlatform = platforms.create(resolution[0] + (measurePlatformWidth * levelDuration) / 2, levelHeight, 'platform' + levelDuration + platformHeight);
-				lastCreatedPlatform.level = levelValue;
-				lastCreatedPlatform.duration = levelDuration;
-				lastCreatedPlatform.changeLevel = false;
-				if (changeLevelEvent) {
-					lastCreatedPlatform.changeLevel = true;
-					changeLevelEvent = false;
-				}
-				if (levelValue == 0) {
-					lastCreatedPlatform.setVisible(false);
-					lastCreatedPlatform.disableBody();
-				}
 
-				levelsQueue.push(levelValue);
-			}
-			playerLeftBorder = (gameInitialX - player.width / 2);
-			platforms.getChildren().forEach(function (p) {
-				if (p.x < -p.width / 2)
-					p.destroy();
-			})
-			platforms.getChildren().forEach(function (p) {
-				p.x = p.x - platformVelocity;
-				p.body.x = p.body.x - platformVelocity;
-				platformLeftBorder = (p.x - (p.width / 2));
-				currentPlatformWidth = currentPlatform.width;
-				playerEnterJumpArea = (playerLeftBorder > platformLeftBorder + currentPlatformWidth - jumpAreaWidth) && ((playerLeftBorder - gameVelocity) <= (platformLeftBorder + currentPlatformWidth - jumpAreaWidth));
-				if (playerEnterJumpArea) {
-					jumpArea = true;
-					noAnswer = true;
-					fallBeforePause = false;
-					if (levelsQueue[1] == 0) {
-						pauseEvent = true;
-						playerPauseY = player.y;
-					}
-				}
-				currentPlatformChanged = (playerLeftBorder > platformLeftBorder) && (playerLeftBorder - gameVelocity <= platformLeftBorder);
-				if (currentPlatformChanged) {
-					if (levelsQueue[0] == 0) {
-						pauseEvent = false;
-						player.setGravityY(playerGravity);
-					}
-					levelsQueue.shift();
-					if (levelsQueue[0] == 0) {
-						playerEnterPause = true;
-						if (pitchDetector.isEnable()) {
-							pitchDetector.toggleEnable();
-						}
-					}
-					else {
-						playerEnterPause = false;
-					}
-					currentPlatform = p;
-					if (noAnswer)
-						goAhead = false;
-
-					jumpArea = false;
-				}
-			})
-			if (player.body.touching.down && playerFixedX == 200) {
-				player.anims.play('playerRun', true);
-				player.body.setGravityY(playerGravity);
-				gameStatus = "Running";
-				jumpFromPause = false;
-				playerEndY = 0;
-				endedPauseAnimation = false;
-				if (score == 0) {
-					score++;
-					this.scores.player = score;
-					scoreText.setText('Score: ' + score);
-					socket.emit('updateScore', {
-						roomId: this.currentRoomId,
-						score: score
-					});
-					if (this.dataChannel && this.dataChannel.readyState === 'open') {
-						sendData(this.dataChannel, {
-							type: "scoreUpdate",
-							score: score,
-							timestamp: Date.now()
-						});
-					} statusText.setText("Sing!");
-					tween = gameContext.add.tween({ targets: statusText, ease: 'Sine.easeInOut', duration: 300, delay: 0, alpha: { getStart: () => 1, getEnd: () => 0 } });
-					tween2 = gameContext.add.tween({ targets: statusText, ease: 'Sine.easeInOut', duration: 300, delay: 0, alpha: { getStart: () => 1, getEnd: () => 0 } });
-					tween.setCallback(function () {
-						statusText.setText();
-						centeredText.setText();
-					});
-					if (noAnswer) {
-						goAhead = false;
-					}
-				}
+update: function () {
+	let elapsedTime = Math.floor((this.time.now / 1000) - this.startTime);
+	let minutes = Math.floor(elapsedTime / 60);
+	let seconds = elapsedTime % 60;
+	let formattedTime = (minutes < 10 ? '0' : '') + minutes + ":" + (seconds < 10 ? '0' : '') + seconds;
+	this.timeText.setText('Time: ' + formattedTime);
+	if (game.scene.isActive("playSceneMultiplayer")) {
+		measureGrids.getChildren().forEach(function (p) {
+			if (p.x < -p.width / 2)
+				p.destroy();
+		})
+		measureGrids.getChildren().forEach(function (p) {
+			p.x = p.x - platformVelocity;
+			p.body.x = p.body.x - platformVelocity;
+		});
+		if (lastGrid.x <= resolution[0] - measurePlatformWidth / 2) { //When the platform is completely on the screen, generate a new platform
+			prevGridNumber = lastGrid.progressiveNumber;
+			if (lastGrid.progressiveNumber == 0) { //The first to be created with update function
+				lastGrid = measureGrids.create(resolution[0] + (measurePlatformWidth / 2) - 1, (resolution[1] / 2) + playerHeight, 'grid-texture');
+				lastGrid.setDepth(-1);
 			}
 			else {
-				if (levelsQueue[0] != 0 || jumpFromPause) {
-					player.anims.play('playerStop', true);
+				lastGrid = measureGrids.create(resolution[0] + (measurePlatformWidth / 2), (resolution[1] / 2) + playerHeight, 'grid-texture');
+				lastGrid.setDepth(-1);
+			}
+			lastGrid.progressiveNumber = prevGridNumber + 1;
+		}
+		if (lastCreatedPlatform.x <= resolution[0] - lastCreatedPlatform.width / 2) { //When the platform is completely on the screen, generate a new platform
+			newLevel = generateLevel();
+			levelValue = newLevel[0];
+			levelHeight = newLevel[1];
+			levelDuration = newLevel[2];
+			createPlatformTexture(this, measurePlatformWidth * levelDuration, platformHeight, levelDuration);
+			lastCreatedPlatform = platforms.create(resolution[0] + (measurePlatformWidth * levelDuration) / 2, levelHeight, 'platform' + levelDuration + platformHeight);
+			lastCreatedPlatform.level = levelValue;
+			lastCreatedPlatform.duration = levelDuration;
+			lastCreatedPlatform.changeLevel = false;
+			if (changeLevelEvent) {
+				lastCreatedPlatform.changeLevel = true;
+				changeLevelEvent = false;
+			}
+			if (levelValue == 0) {
+				lastCreatedPlatform.setVisible(false);
+				lastCreatedPlatform.disableBody();
+			}
+
+			levelsQueue.push(levelValue);
+		}
+		playerLeftBorder = (gameInitialX - player.width / 2);
+		platforms.getChildren().forEach(function (p) {
+			if (p.x < -p.width / 2)
+				p.destroy();
+		})
+		platforms.getChildren().forEach(function (p) {
+			p.x = p.x - platformVelocity;
+			p.body.x = p.body.x - platformVelocity;
+			platformLeftBorder = (p.x - (p.width / 2));
+			currentPlatformWidth = currentPlatform.width;
+			playerEnterJumpArea = (playerLeftBorder > platformLeftBorder + currentPlatformWidth - jumpAreaWidth) && ((playerLeftBorder - gameVelocity) <= (platformLeftBorder + currentPlatformWidth - jumpAreaWidth));
+			if (playerEnterJumpArea) {
+				jumpArea = true;
+				noAnswer = true;
+				fallBeforePause = false;
+				if (levelsQueue[1] == 0) {
+					pauseEvent = true;
+					playerPauseY = player.y;
 				}
-				platformTouched = false;
 			}
-			if (!player.body.touching.down) {
-				if (player.y > playerPreviousY + 1 && collider.overlapOnly == true) {
-					collider.overlapOnly = false;
+			currentPlatformChanged = (playerLeftBorder > platformLeftBorder) && (playerLeftBorder - gameVelocity <= platformLeftBorder);
+			if (currentPlatformChanged) {
+				if (levelsQueue[0] == 0) {
+					pauseEvent = false;
+					player.setGravityY(playerGravity);
 				}
-				playerPreviousY = player.y;
-			}
-			if (levelsQueue[1] == 0 && player.x > currentPlatform.x + currentPlatform.width / 2 + initialPauseStability && !fallBeforePause) {
-				player.y = playerPauseY;
-				player.body.y = playerPauseY;
-				player.setGravityY(-gravity);
-			}
-			if (levelsQueue[0] == 0 && !jumpFromPause && pauseEvent) {
-				player.body.setGravityY(-gravity);
-				goAhead = true;
-				if (playerEnterPause) {
-					playerEndY = ((player.height * 3) + ((numberOfLevels - levelsQueue[1]) * stepHeight) + (stepHeight / 2)) - 5;
-					pauseStepTween = gameContext.add.tween({ targets: player, ease: 'Sine.easeInOut', duration: (currentPlatform.duration * 10000), delay: 0, y: { getStart: () => playerPauseY, getEnd: () => playerEndY } });
-					pauseStepTween.setCallback("onComplete", function () {
-						endedPauseAnimation = true;
-						if (!pitchDetector.isEnable()) {
-							pitchDetector.toggleEnable();
-						}
-					}, player);
-					playerEnterPause = false;
-					if (currentPlatform.changeLevel && gameModality == GAME_MODE.PROGRESSIVE) {
-						changeLevelAndBackground();
-						currentScaleTextTween = gameContext.add.tween({ targets: currentScaleText, ease: 'Sine.easeInOut', duration: 300, delay: 0, alpha: { getStart: () => 1, getEnd: () => 0 } });
-						currentScaleTextDescTween = gameContext.add.tween({ targets: currentScaleTextDesc, ease: 'Sine.easeInOut', duration: 300, delay: 0, alpha: { getStart: () => 1, getEnd: () => 0 } });
-						currentScaleTextTween.setCallback("onComplete", function () {
-							if (noteReference.substring(1, 2) == '#')
-								currentNoteReference = noteReference.substring(0, 2);
-							else
-								currentNoteReference = noteReference.substring(0, 1);
-							currentScaleText.setText('' + currentNoteReference + ' ' + gameLevelToScaleArray[gameLevel].charAt(0).toUpperCase() + gameLevelToScaleArray[gameLevel].slice(1));
-							currentScaleTextDesc.setX(currentScaleText.x - currentScaleText.width);
-						}, currentScaleText);
-						gameContext.add.tween({ targets: currentScaleText, ease: 'Sine.easeInOut', duration: 300, delay: 300, alpha: { getStart: () => 0, getEnd: () => 1 } });
-						gameContext.add.tween({ targets: currentScaleTextDesc, ease: 'Sine.easeInOut', duration: 300, delay: 300, alpha: { getStart: () => 0, getEnd: () => 1 } });
+				levelsQueue.shift();
+				if (levelsQueue[0] == 0) {
+					playerEnterPause = true;
+					if (pitchDetector.isEnable()) {
+						pitchDetector.toggleEnable();
 					}
 				}
-				if (endedPauseAnimation) {
-					player.y = playerEndY;
-					player.body.y = playerEndY;
+				else {
+					playerEnterPause = false;
 				}
-				if (player.x - playerWidth / 2 - 5 > currentPlatform.x - currentPlatform.width / 2 && player.x + playerWidth / 2 < currentPlatform.x + currentPlatform.width / 2) {
-					player.anims.play('playerFly', true);
+				currentPlatform = p;
+				if (noAnswer)
+					goAhead = false;
+
+				jumpArea = false;
+			}
+		})
+		if (player.body.touching.down && playerFixedX == 200) {
+			player.anims.play('playerRun', true);
+			player.body.setGravityY(playerGravity);
+			gameStatus = "Running";
+			jumpFromPause = false;
+			playerEndY = 0;
+			endedPauseAnimation = false;
+			if (score == 0) {
+				score++;
+				this.scores.player = score;
+				scoreText.setText('Score: ' + score);
+				socket.emit('updateScore', {
+					roomId: this.currentRoomId,
+					score: score
+				});
+				if (this.dataChannel && this.dataChannel.readyState === 'open') {
+					sendData(this.dataChannel, {
+						type: "scoreUpdate",
+						score: score,
+						timestamp: Date.now()
+					});
+				} statusText.setText("Sing!");
+				tween = gameContext.add.tween({ targets: statusText, ease: 'Sine.easeInOut', duration: 300, delay: 0, alpha: { getStart: () => 1, getEnd: () => 0 } });
+				tween2 = gameContext.add.tween({ targets: statusText, ease: 'Sine.easeInOut', duration: 300, delay: 0, alpha: { getStart: () => 1, getEnd: () => 0 } });
+				tween.setCallback(function () {
+					statusText.setText();
+					centeredText.setText();
+				});
+				if (noAnswer) {
+					goAhead = false;
 				}
 			}
-			if (gameStatus == "Intro") {
-				if (player.body.touching.down && initialScaleNote + 1 < 8) {
+		}
+		else {
+			if (levelsQueue[0] != 0 || jumpFromPause) {
+				player.anims.play('playerStop', true);
+			}
+			platformTouched = false;
+		}
+		if (!player.body.touching.down) {
+			if (player.y > playerPreviousY + 1 && collider.overlapOnly == true) {
+				collider.overlapOnly = false;
+			}
+			playerPreviousY = player.y;
+		}
+		if (levelsQueue[1] == 0 && player.x > currentPlatform.x + currentPlatform.width / 2 + initialPauseStability && !fallBeforePause) {
+			player.y = playerPauseY;
+			player.body.y = playerPauseY;
+			player.setGravityY(-gravity);
+		}
+		if (levelsQueue[0] == 0 && !jumpFromPause && pauseEvent) {
+			player.body.setGravityY(-gravity);
+			goAhead = true;
+			if (playerEnterPause) {
+				playerEndY = ((player.height * 3) + ((numberOfLevels - levelsQueue[1]) * stepHeight) + (stepHeight / 2)) - 5;
+				pauseStepTween = gameContext.add.tween({ targets: player, ease: 'Sine.easeInOut', duration: (currentPlatform.duration * 10000), delay: 0, y: { getStart: () => playerPauseY, getEnd: () => playerEndY } });
+				pauseStepTween.setCallback("onComplete", function () {
+					endedPauseAnimation = true;
+					if (!pitchDetector.isEnable()) {
+						pitchDetector.toggleEnable();
+					}
+				}, player);
+				playerEnterPause = false;
+				if (currentPlatform.changeLevel && gameModality == GAME_MODE.PROGRESSIVE) {
+					changeLevelAndBackground();
+					currentScaleTextTween = gameContext.add.tween({ targets: currentScaleText, ease: 'Sine.easeInOut', duration: 300, delay: 0, alpha: { getStart: () => 1, getEnd: () => 0 } });
+					currentScaleTextDescTween = gameContext.add.tween({ targets: currentScaleTextDesc, ease: 'Sine.easeInOut', duration: 300, delay: 0, alpha: { getStart: () => 1, getEnd: () => 0 } });
+					currentScaleTextTween.setCallback("onComplete", function () {
+						if (noteReference.substring(1, 2) == '#')
+							currentNoteReference = noteReference.substring(0, 2);
+						else
+							currentNoteReference = noteReference.substring(0, 1);
+						currentScaleText.setText('' + currentNoteReference + ' ' + gameLevelToScaleArray[gameLevel].charAt(0).toUpperCase() + gameLevelToScaleArray[gameLevel].slice(1));
+						currentScaleTextDesc.setX(currentScaleText.x - currentScaleText.width);
+					}, currentScaleText);
+					gameContext.add.tween({ targets: currentScaleText, ease: 'Sine.easeInOut', duration: 300, delay: 300, alpha: { getStart: () => 0, getEnd: () => 1 } });
+					gameContext.add.tween({ targets: currentScaleTextDesc, ease: 'Sine.easeInOut', duration: 300, delay: 300, alpha: { getStart: () => 0, getEnd: () => 1 } });
+				}
+			}
+			if (endedPauseAnimation) {
+				player.y = playerEndY;
+				player.body.y = playerEndY;
+			}
+			if (player.x - playerWidth / 2 - 5 > currentPlatform.x - currentPlatform.width / 2 && player.x + playerWidth / 2 < currentPlatform.x + currentPlatform.width / 2) {
+				player.anims.play('playerFly', true);
+			}
+		}
+		if (gameStatus == "Intro") {
+			if (player.body.touching.down && initialScaleNote + 1 < 8) {
+				initialScaleNote++;
+				playLevel(initialScaleNote);
+				player.setVelocityY(-1 * Math.pow(2 * (gravity + playerGravity * (introVelocity / 10)) * stepHeight * 1.5, 1 / 2));
+				collider.overlapOnly = true;
+				levelValue = initialScaleNote + 1;
+				levelHeight = (player.height * 3) + ((numberOfLevels - levelValue) * stepHeight) + (stepHeight / 2);
+				levelDuration = 1 / 8;
+				createPlatformTexture(this, measurePlatformWidth * levelDuration, 1, levelDuration);
+				scalePlatform = platforms.create(playerFixedX, levelHeight, 'platform' + levelDuration + 1);
+				scalePlatform.setVisible(false);
+			}
+			else if (player.body.touching.down && countdown > 1) {
+				countdown--;
+				if (countdown == 3) {
 					initialScaleNote++;
 					playLevel(initialScaleNote);
-					player.setVelocityY(-1 * Math.pow(2 * (gravity + playerGravity * (introVelocity / 10)) * stepHeight * 1.5, 1 / 2));
-					collider.overlapOnly = true;
-					levelValue = initialScaleNote + 1;
-					levelHeight = (player.height * 3) + ((numberOfLevels - levelValue) * stepHeight) + (stepHeight / 2);
-					levelDuration = 1 / 8;
-					createPlatformTexture(this, measurePlatformWidth * levelDuration, 1, levelDuration);
-					scalePlatform = platforms.create(playerFixedX, levelHeight, 'platform' + levelDuration + 1);
-					scalePlatform.setVisible(false);
+					statusText.setAlpha(0);
+					statusText.setText("Ready?!");
+					statusTextTween = gameContext.add.tween({ targets: statusText, ease: 'Sine.easeInOut', duration: 300, delay: 0, alpha: { getStart: () => 0, getEnd: () => 1 } });
 				}
-				else if (player.body.touching.down && countdown > 1) {
-					countdown--;
-					if (countdown == 3) {
-						initialScaleNote++;
-						playLevel(initialScaleNote);
-						statusText.setAlpha(0);
-						statusText.setText("Ready?!");
-						statusTextTween = gameContext.add.tween({ targets: statusText, ease: 'Sine.easeInOut', duration: 300, delay: 0, alpha: { getStart: () => 0, getEnd: () => 1 } });
-					}
-					player.setVelocityY(-1 * Math.pow(2 * (gravity + playerGravity * (introVelocity / 10)) * stepHeight * 2 * (636 / resolution[1]), 1 / 2));
-					centeredText.setAlpha(0);
-					centeredText.setText(countdown);
-					centeredTextTween = gameContext.add.tween({ targets: centeredText, ease: 'Sine.easeInOut', duration: 300, delay: 0, alpha: { getStart: () => 0, getEnd: () => 1 } });
-				}
-				else if (player.body.touching.down) {
-					countdown--;
-					centeredText.setText();
-					statusText.setText("Sing!");
-					noAnswer = true;
-					player.setVelocityY(-1 * Math.pow(2 * (gravity + playerGravity * (introVelocity / 10)) * stepHeight * 2.3 * (636 / resolution[1]), 1 / 2));
-					if (!pitchDetector.isEnable())
-						pitchDetector.toggleEnable();
-					t = gameContext.add.tween({ targets: player, ease: 'Sine.easeInOut', duration: (800 / Math.sqrt(introVelocity * 1.5)) * Math.sqrt(resolution[1] / 636) * 1.1, delay: 0, x: { getStart: () => playerFixedX, getEnd: () => gameInitialX } });
-					t.setCallback("onComplete", function () {
-						playerFixedX = gameInitialX;
-						player.setGravityY(playerGravity);
-					}, player);
-				}
+				player.setVelocityY(-1 * Math.pow(2 * (gravity + playerGravity * (introVelocity / 10)) * stepHeight * 2 * (636 / resolution[1]), 1 / 2));
+				centeredText.setAlpha(0);
+				centeredText.setText(countdown);
+				centeredTextTween = gameContext.add.tween({ targets: centeredText, ease: 'Sine.easeInOut', duration: 300, delay: 0, alpha: { getStart: () => 0, getEnd: () => 1 } });
 			}
-			if (gameStatus == "Running")
-				platformVelocity = gameVelocity;
-			if (player.y > resolution[1] + player.height / 2) {
-				game.scene.pause("playSceneMultiplayer");
-				game.scene.start("gameoverScene");
-			}
-			if (!goAhead) {
-				if (gameStatus == "Running") {
-					player.body.setGravityY(playerGravity);
-					player.angle += 5;
-				}
-				this.physics.world.colliders.destroy();
+			else if (player.body.touching.down) {
+				countdown--;
+				centeredText.setText();
+				statusText.setText("Sing!");
+				noAnswer = true;
+				player.setVelocityY(-1 * Math.pow(2 * (gravity + playerGravity * (introVelocity / 10)) * stepHeight * 2.3 * (636 / resolution[1]), 1 / 2));
+				if (!pitchDetector.isEnable())
+					pitchDetector.toggleEnable();
+				t = gameContext.add.tween({ targets: player, ease: 'Sine.easeInOut', duration: (800 / Math.sqrt(introVelocity * 1.5)) * Math.sqrt(resolution[1] / 636) * 1.1, delay: 0, x: { getStart: () => playerFixedX, getEnd: () => gameInitialX } });
+				t.setCallback("onComplete", function () {
+					playerFixedX = gameInitialX;
+					player.setGravityY(playerGravity);
+				}, player);
 			}
 		}
-	},
-	initializeWebRTCBackup: function () {
-		if (multiplayerState.connectionRetries >= multiplayerState.maxRetries) {
-			console.warn("Max connection retries reached");
-			return;
+		if (gameStatus == "Running")
+			platformVelocity = gameVelocity;
+		if (player.y > resolution[1] + player.height / 2) {
+			game.scene.pause("playSceneMultiplayer");
+			game.scene.start("gameoverScene");
 		}
-
-		multiplayerState.connectionRetries++;
-		console.log(`Attempting WebRTC connection (try ${multiplayerState.connectionRetries})`);
-
-		this.peerConnection = initializeWebRTC(this.currentRoomId, (pc) => {
-			this.dataChannel = setupDataChannel(pc, (message) => {
-				if (message.type === 'scoreUpdate') {
-					this.handleMessage(message);
-				}
-			});
-			multiplayerState.connected = true;
-		});
-	},
-
-	handleOpponentUpdate: function (data) {
-		if (data.roomId === this.currentRoomId) {
-			this.scores.opponent = data.score;
-			this.opponentScoreText.setText(`RIVAL: ${data.score}`);
-
-			// Sincronización adicional por WebRTC si está disponible
-			if (this.dataChannel && this.dataChannel.readyState === 'open') {
-				sendData(this.dataChannel, {
-					type: "scoreSync",
-					score: this.scores.player,
-					timestamp: Date.now()
-				});
+		if (!goAhead) {
+			if (gameStatus == "Running") {
+				player.body.setGravityY(playerGravity);
+				player.angle += 5;
 			}
+			this.physics.world.colliders.destroy();
 		}
-	},
+	}
 
-	handleDisconnection: function () {
-		const warningText = this.add.text(resolution[0] / 2, resolution[1] / 2,
-			"OPPONENT DISCONNECTED\nReturning to menu...",
-			{
-				font: "bold 32px Arial",
-				fill: "#FF5555",
-				align: "center",
-				backgroundColor: "#333"
-			}).setOrigin(0.5);
+},
+handleMessage: function(message) {
+	try {
+		console.log("Message received:", message);
+		if (message.type === "scoreUpdate") {
+			console.log("Opponent Score Updated via WebRTC:", message.score);
+			this.opponentScoreText.setText('Opponent: ' + message.score);
+		}
+	} catch (error) {
+		console.error("Error handling message:", error);
+	}
+},
+handleOpponentUpdate: function (data) {
+	if (data.roomId === this.currentRoomId) {
+		this.scores.opponent = data.score;
+		this.opponentScoreText.setText(`RIVAL: ${data.score}`);
 
-		setTimeout(() => {
-			game.scene.stop("playSceneMultiplayer");
-			game.scene.start("multiplayerScene");
-		}, 3000);
-	},
-
-	handleReconnection: function () {
-		// Re-enviar el puntaje actual al reconectar
-		if (this.scores.player > 0) {
-			socket.emit('updateScore', {
-				roomId: this.currentRoomId,
-				score: this.scores.player
+		// Sincronización adicional por WebRTC si está disponible
+		if (this.dataChannel && this.dataChannel.readyState === 'open') {
+			sendData(this.dataChannel, {
+				type: "scoreSync",
+				score: this.scores.player,
+				timestamp: Date.now()
 			});
 		}
+	}
+},
 
-		// Mostrar notificación al jugador
-		const reconnectText = this.add.text(resolution[0] / 2, 100,
-			"Connection reestablished!",
-			{
-				font: "bold 24px Arial",
-				fill: "#4CAF50",
-				backgroundColor: "#333"
-			}).setOrigin(0.5);
+handleDisconnection: function () {
+	const warningText = this.add.text(resolution[0] / 2, resolution[1] / 2,
+		"OPPONENT DISCONNECTED\nReturning to menu...",
+		{
+			font: "bold 32px Arial",
+			fill: "#FF5555",
+			align: "center",
+			backgroundColor: "#333"
+		}).setOrigin(0.5);
 
-		this.tweens.add({
-			targets: reconnectText,
-			alpha: 0,
-			duration: 2000,
-			delay: 1000,
-			onComplete: () => reconnectText.destroy()
+	setTimeout(() => {
+		game.scene.stop("playSceneMultiplayer");
+		game.scene.start("multiplayerScene");
+	}, 3000);
+},
+
+handleReconnection: function () {
+	// Re-enviar el puntaje actual al reconectar
+	if (this.scores.player > 0) {
+		socket.emit('updateScore', {
+			roomId: this.currentRoomId,
+			score: this.scores.player
 		});
 	}
+
+	// Mostrar notificación al jugador
+	const reconnectText = this.add.text(resolution[0] / 2, 100,
+		"Connection reestablished!",
+		{
+			font: "bold 24px Arial",
+			fill: "#4CAF50",
+			backgroundColor: "#333"
+		}).setOrigin(0.5);
+
+	this.tweens.add({
+		targets: reconnectText,
+		alpha: 0,
+		duration: 2000,
+		delay: 1000,
+		onComplete: () => reconnectText.destroy()
+	});
+},
+shutdown: function() {
+	// Limpiar listeners de socket
+	if (this.webrtcHandlers) {
+		socket.off('offer', this.webrtcHandlers.offer);
+		socket.off('answer', this.webrtcHandlers.answer);
+		socket.off('iceCandidate', this.webrtcHandlers.iceCandidate);
+	}
+	
+	// Cerrar conexión WebRTC
+	if (this.peerConnection) {
+		this.peerConnection.close();
+	}
 }
+};
 game.scene.add("playSceneMultiplayer", playSceneMultiplayer);
 
 
