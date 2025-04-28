@@ -15,7 +15,11 @@ PitchDetector.prototype.start = function() {
   const self = this
 
   self.tuner.init()
-  self.frequencyData = new Uint8Array(self.tuner.analyser.frequencyBinCount)
+  setTimeout(() => {
+    if (self.tuner.analyser) {
+      self.frequencyData = new Uint8Array(self.tuner.analyser.frequencyBinCount);
+    }
+  }, 500);
 
 
   this.tuner.onNoteDetected = function(note) {

@@ -56,76 +56,134 @@ const Tuner = function() {
   }
   
   
-  Tuner.prototype.startRecord = function () {
+  Tuner.prototype.startRecord = function() {
     const self = this;
     navigator.mediaDevices
-      .getUserMedia({ audio: true })
-      .then(function (stream) {
-        self.audioContext.createMediaStreamSource(stream).connect(self.analyser);
-        self.analyser.connect(self.scriptProcessor);
-        self.scriptProcessor.connect(self.audioContext.destination);
-  
-        self.scriptProcessor.addEventListener('audioprocess', function (event) {
-          const inputData = event.inputBuffer.getChannelData(0); 
-          const audioFragment = inputData.slice(0, Math.min(inputData.length, 16000)); // ~0.36s a 44.1kHz
-  
-          const wavBlob = encodeWAV(audioFragment, 44100);
-  
-          sendToParcnet(wavBlob).then(correctedAudioBlob => {
-            const reader = new FileReader();
-            reader.onload = function () {
-              const arrayBuffer = reader.result;
-              self.audioContext.decodeAudioData(arrayBuffer, function (audioBuffer) {
-                const correctedSamples = audioBuffer.getChannelData(0);
-                const frequency = self.pitchDetector.do(correctedSamples);
-  
-                if (frequency && self.onNoteDetected) {
-                  const note = self.getNote(frequency);
-                  self.onNoteDetected({
-                    name: self.noteStrings[note % 12],
-                    value: note,
-                    cents: self.getCents(frequency, note),
-                    octave: parseInt(note / 12) - 1,
-                    frequency: frequency
-                  });
-                }
-              }, function (error) {
-                console.error('Error decoding corrected audio:', error);
-              });
-            };
-            reader.readAsArrayBuffer(correctedAudioBlob);
-          }).catch(err => {
-            console.error("Error comunicando con PARCnet:", err);
-          });
+        .getUserMedia({ audio: true })
+        .then(function(stream) {
+            const source = self.audioContext.createMediaStreamSource(stream);
+            source.connect(self.analyser);
+            
+            // Inicializar el detector de pitch en el worklet
+            self.pitchWorklet.port.postMessage({
+                type: 'init',
+                bufferSize: self.bufferSize,
+                sampleRate: self.audioContext.sampleRate
+            });
+        })
+        .catch(function(error) {
+            alert(error.name + ': ' + error.message);
         });
-      })
-      .catch(function (error) {
-        alert(error.name + ': ' + error.message);
-      });
-  }  
+};
   
   
-  Tuner.prototype.init = function() {
-    this.audioContext = new window.AudioContext()
-    this.analyser = this.audioContext.createAnalyser()
-    this.scriptProcessor = this.audioContext.createScriptProcessor(
-      this.bufferSize,
-      1,
-      1
-    )
-  
-    const self = this
-  
-    Aubio().then(function(aubio) {
-      self.pitchDetector = new aubio.Pitch(
-        'default',
-        self.bufferSize,
-        1,
-        self.audioContext.sampleRate
-      )
-      self.startRecord()
-    })
+Tuner.prototype.init = function() {
+  try {
+    // Crear el contexto de audio
+    this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    
+    // Configurar el analizador
+    this.analyser = this.audioContext.createAnalyser();
+    this.analyser.fftSize = this.bufferSize;
+    
+    // Intentar usar AudioWorklet (método moderno)
+    if (this.audioContext.audioWorklet && typeof this.audioContext.audioWorklet.addModule === 'function') {
+      return this._initWithAudioWorklet();
+    } else {
+      // Fallback a ScriptProcessorNode (método obsoleto pero compatible)
+      console.warn('AudioWorklet no está disponible, usando ScriptProcessorNode (obsoleto)');
+      return this._initWithScriptProcessor();
+    }
+  } catch (error) {
+    console.error('Error al inicializar el tuner:', error);
+    throw new Error('No se pudo inicializar el sistema de audio: ' + error.message);
   }
+};
+
+// Implementación con AudioWorklet (recomendado)
+Tuner.prototype._initWithAudioWorklet = function() {
+  const self = this;
+  const workletPath = 'pitchdetector/pitch-processor.js'; // Ajusta esta ruta según tu estructura de archivos
+  
+  return this.audioContext.audioWorklet.addModule(workletPath)
+    .then(() => {
+      console.log('Módulo AudioWorklet cargado correctamente');
+      
+      // Crear el nodo worklet
+      this.pitchWorklet = new AudioWorkletNode(this.audioContext, 'pitch-processor', {
+        processorOptions: {
+          bufferSize: this.bufferSize,
+          sampleRate: this.audioContext.sampleRate
+        }
+      });
+      
+      // Configurar conexiones
+      this.analyser.connect(this.pitchWorklet);
+      
+      // Manejar mensajes del worklet
+      this.pitchWorklet.port.onmessage = (event) => {
+        if (event.data.frequency && self.onNoteDetected) {
+          const note = self.getNote(event.data.frequency);
+          self.onNoteDetected({
+            name: self.noteStrings[note % 12],
+            value: note,
+            cents: self.getCents(event.data.frequency, note),
+            octave: parseInt(note / 12) - 1,
+            frequency: event.data.frequency
+          });
+        }
+      };
+      
+      // Iniciar la grabación
+      return this.startRecord();
+    })
+    .catch(error => {
+      console.error('Error al cargar AudioWorklet:', error);
+      // Fallback a ScriptProcessorNode si falla
+      return this._initWithScriptProcessor();
+    });
+};
+
+// Implementación con ScriptProcessorNode (fallback)
+Tuner.prototype._initWithScriptProcessor = function() {
+  const self = this;
+  
+  console.warn('Usando ScriptProcessorNode (obsoleto) como fallback');
+  
+  // Crear el script processor
+  this.scriptProcessor = this.audioContext.createScriptProcessor(
+    this.bufferSize, 1, 1
+  );
+  
+  // Configurar conexiones
+  this.analyser.connect(this.scriptProcessor);
+  this.scriptProcessor.connect(this.audioContext.destination);
+  
+  // Configurar el manejador de procesamiento de audio
+  this.scriptProcessor.onaudioprocess = function(event) {
+    try {
+      const frequency = self.pitchDetector.do(
+        event.inputBuffer.getChannelData(0)
+      );
+      
+      if (frequency && self.onNoteDetected) {
+        const note = self.getNote(frequency);
+        self.onNoteDetected({
+          name: self.noteStrings[note % 12],
+          value: note,
+          cents: self.getCents(frequency, note),
+          octave: parseInt(note / 12) - 1,
+          frequency: frequency
+        });
+      }
+    } catch (e) {
+      console.error('Error en el procesamiento de audio:', e);
+    }
+  };
+  
+  // Iniciar la grabación
+  return Promise.resolve(this.startRecord());
+};
   
   /**
    * get musical note from frequency
