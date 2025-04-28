@@ -57,33 +57,52 @@ const Tuner = function() {
   
   
   Tuner.prototype.startRecord = function () {
-    const self = this
+    const self = this;
     navigator.mediaDevices
       .getUserMedia({ audio: true })
-      .then(function(stream) {
-        self.audioContext.createMediaStreamSource(stream).connect(self.analyser)
-        self.analyser.connect(self.scriptProcessor)
-        self.scriptProcessor.connect(self.audioContext.destination)
-        self.scriptProcessor.addEventListener('audioprocess', function(event) {
-          const frequency = self.pitchDetector.do(
-            event.inputBuffer.getChannelData(0)
-          )
-          if (frequency && self.onNoteDetected) {
-            const note = self.getNote(frequency)
-            self.onNoteDetected({
-              name: self.noteStrings[note % 12],
-              value: note,
-              cents: self.getCents(frequency, note),
-              octave: parseInt(note / 12) - 1,
-              frequency: frequency
-            })
-          }
-        })
+      .then(function (stream) {
+        self.audioContext.createMediaStreamSource(stream).connect(self.analyser);
+        self.analyser.connect(self.scriptProcessor);
+        self.scriptProcessor.connect(self.audioContext.destination);
+  
+        self.scriptProcessor.addEventListener('audioprocess', function (event) {
+          const inputData = event.inputBuffer.getChannelData(0); 
+          const audioFragment = inputData.slice(0, Math.min(inputData.length, 16000)); // ~0.36s a 44.1kHz
+  
+          const wavBlob = encodeWAV(audioFragment, 44100);
+  
+          sendToParcnet(wavBlob).then(correctedAudioBlob => {
+            const reader = new FileReader();
+            reader.onload = function () {
+              const arrayBuffer = reader.result;
+              self.audioContext.decodeAudioData(arrayBuffer, function (audioBuffer) {
+                const correctedSamples = audioBuffer.getChannelData(0);
+                const frequency = self.pitchDetector.do(correctedSamples);
+  
+                if (frequency && self.onNoteDetected) {
+                  const note = self.getNote(frequency);
+                  self.onNoteDetected({
+                    name: self.noteStrings[note % 12],
+                    value: note,
+                    cents: self.getCents(frequency, note),
+                    octave: parseInt(note / 12) - 1,
+                    frequency: frequency
+                  });
+                }
+              }, function (error) {
+                console.error('Error decoding corrected audio:', error);
+              });
+            };
+            reader.readAsArrayBuffer(correctedAudioBlob);
+          }).catch(err => {
+            console.error("Error comunicando con PARCnet:", err);
+          });
+        });
       })
-      .catch(function(error) {
-        alert(error.name + ': ' + error.message)
-      })
-  }
+      .catch(function (error) {
+        alert(error.name + ': ' + error.message);
+      });
+  }  
   
   
   Tuner.prototype.init = function() {
@@ -171,4 +190,41 @@ const Tuner = function() {
       //console.log("STOP")
     }
   }
+
+  function encodeWAV(samples, sampleRate) {
+    const buffer = new ArrayBuffer(44 + samples.length * 2);
+    const view = new DataView(buffer);
+
+    function writeString(view, offset, string) {
+        for (let i = 0; i < string.length; i++) {
+            view.setUint8(offset + i, string.charCodeAt(i));
+        }
+    }
+
+    const sampleLength = samples.length;
+    const fileLength = sampleLength * 2 + 36;
+
+    writeString(view, 0, 'RIFF');
+    view.setUint32(4, fileLength, true);
+    writeString(view, 8, 'WAVE');
+    writeString(view, 12, 'fmt ');
+    view.setUint32(16, 16, true); // SubChunk1Size (16 for PCM)
+    view.setUint16(20, 1, true);  // AudioFormat (1 for PCM)
+    view.setUint16(22, 1, true);  // NumChannels
+    view.setUint32(24, sampleRate, true); // SampleRate
+    view.setUint32(28, sampleRate * 2, true); // ByteRate
+    view.setUint16(32, 2, true); // BlockAlign
+    view.setUint16(34, 16, true); // BitsPerSample
+    writeString(view, 36, 'data');
+    view.setUint32(40, sampleLength * 2, true);
+
+    let offset = 44;
+    for (let i = 0; i < sampleLength; i++, offset += 2) {
+        const s = Math.max(-1, Math.min(1, samples[i]));
+        view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+    }
+
+    return new Blob([view], { type: 'audio/wav' });
+}
+
   
