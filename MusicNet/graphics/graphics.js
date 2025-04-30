@@ -124,7 +124,8 @@ var currentNoteReference;
 
 //Pitch detector initialization (here to create only one object even if the game is restarted)
 const pitchDetector = new PitchDetector();
-pitchDetector.start();
+//pitchDetector.start();
+
 
 //Game context
 var gameContext;
@@ -646,7 +647,6 @@ function createButton(scene, x, y, text, bgColor, textColor, width = 180, height
 
 	return buttonContainer;
 }
-
 var multiplayerScene = {
 	preload: function () {
 		this.cameras.main.setBackgroundColor("#F0EAD2");
@@ -659,12 +659,21 @@ var multiplayerScene = {
 		createButton(this, resolution[0] / 2 - 150, resolution[1] / 2,
 			"Create Room", 0xA98467, 0xF0EAD2, 180, 50, 26, function () {
 				const roomCode = generateRoomCode();
-				socket.emit('createRoom', roomCode, (response) => { console.log('Response:', response) });
+				WebRTCManager.createRoom(roomCode);
+				WebRTCManager.connect({
+					roomCode: roomCode,
+					isHost: true,
+					onReady: () => {
+						console.log("🟢 Host conectado a WebRTC.");
+					}
+				}),
+					game.scene.stop("multiplayerScene");
 				game.scene.start("createRoomScene", { roomCode: roomCode });
 			});
 
 		createButton(this, resolution[0] / 2 + 150, resolution[1] / 2,
 			"Join Room", 0xADC178, 0xF0EAD2, 180, 50, 26, function () {
+				game.scene.stop("multiplayerScene");
 				game.scene.start("joinRoomScene");
 			});
 
@@ -672,13 +681,9 @@ var multiplayerScene = {
 			game.scene.stop("multiplayerScene");
 			game.scene.start("splashScene");
 		});
-	}
+	},
 };
 game.scene.add("multiplayerScene", multiplayerScene);
-
-function initializeNetwork() {
-	socket.connect();
-}
 
 var createRoomScene = {
 	preload: function () {
@@ -687,16 +692,14 @@ var createRoomScene = {
 	create: function (data) {
 		if (!data || !data.roomCode) {
 			console.error("No room code provided");
+			game.scene.stop("createRoomScene");
+			//game.scene.start("multiplayerScene");
 			return;
 		}
 		const roomCode = data.roomCode; // Code generated in the previous scene
-
+		this.currentRoomId = roomCode; // Store the room code for later use
 		// Set solid background color
 		this.cameras.main.setBackgroundColor("#F0EAD2");
-
-		socket.on("connect", () => {
-			console.log("Cliente conectado con ID:", socket.id);
-		});
 
 		// Scene title
 		this.add.text(resolution[0] / 2, resolution[1] / 4, "Room Created",
@@ -716,71 +719,33 @@ var createRoomScene = {
 
 		createButton(this, 80, 40, "← Back", 0xADC178, 0xF0EAD2, 100, 40, 20, function () {
 			game.scene.stop("createRoomScene");
-			socket.emit('leaveRoom', this.roomCode); // Notify the server that the user is leaving the room
-			socket.off('playerJoined');
-			socket.off('startGame');
+			WebRTCManager.leaveRoom(roomCode);
 			game.scene.start("multiplayerScene");
 		});
-		createRoomScene.setupNetworkHandlers();
-		initializeNetwork();
-	},
-	setupNetworkHandlers: function () {
-		// Other user joined
-		socket.on('playerJoined', (data) => {
-			console.log(`User ${data.playerId} joined the room`);
-			/*this.add.text(resolution[0] / 2, resolution[1] / 2 + 100, 
-				`Player joined! Starting game...`, 
-				{ font: "bold 24px Arial", fill: "#6C584C" }
-			).setOrigin(0.5);*/
-			// Automatically proceed to settings after short delay
-			game.scene.stop("createRoomScene");
-			game.scene.stop("multiplayerScene");
-			game.scene.stop("splashScene");
-			game.scene.start("multiplayerSettingsScene", {
-				roomCode: data.roomCode,
-				isHost: true
-			});
-		});
 
-		/*socket.on('iceCandidate', (data) => {
-			if (data.roomCode === this.roomCode) {
-				this.handleIceCandidate(data.candidate);
+		this.time.delayedCall(500, () => {
+
+			const socket = WebRTCManager.getSocket?.();
+			if (socket) {
+				socket.on('playerJoined', ({ playerId, roomCode }) => {
+					console.log("🎉 Jugador se unió a la sala vía socket.io:", playerId);
+					WebRTCManager.createOfferWhenReady(roomCode);
+					game.scene.stop("createRoomScene");
+					game.scene.stop("multiplayerScene");
+					game.scene.start("multiplayerSettingsScene", {
+						roomCode: roomCode,
+						isHost: true
+					});
+				});
+			} else {
+				console.warn("⚠️ Socket no inicializado al momento de cargar createRoomScene");
 			}
-		});*/
-
-		socket.on('offer', this.handleOffer);
-		socket.on('answer', this.handleAnswer);
-
-		/*socket.on("startGame", (roomCode) => {
-			console.log("Evento recibido en cliente: startGame", roomCode);
-		});
-		// Start game directly using socket.on without creating a separate listener function
-		socket.on('startGame', (roomCode) => {
-			console.log("Starting game for room:", roomCode);
-			game.scene.stop("createRoomScene");
-			game.scene.stop("multiplayerScene");
-			game.scene.stop("splashScene");
-			game.scene.start("multiplayerSettingsScene", { roomCode: roomCode, isHost: true });
-			this.peerConnection = initializeWebRTC(roomCode, ([pc]) => {
-				console.log(" WebRTC connection");
-				this.dataChannel = setupDataChannel(pc, this.handleMessage.bind(this))
-			});
-		});*/
-
-		// Manage Error
-		socket.on('roomExists', () => {
-			console.log("Room already exists.");
 		});
 	},
-	handleMessage: function (message) {
-		console.log("Mensaje recibido:", message);
-	},
+	// En cada escena:
 	shutdown: function () {
-		// Limpiar listeners
-		socket.off('playerJoined');
-		socket.off('iceCandidate');
-		socket.off('offer');
-		socket.off('answer');
+		WebRTCManager.offAll(); // Remove all event listeners when the scene is shut down
+
 	}
 };
 game.scene.add("createRoomScene", createRoomScene);
@@ -817,84 +782,57 @@ var joinRoomScene = {
 			} else if (event.key.length === 1 && this.roomCode.length < 6) {
 				this.roomCode += event.key.toUpperCase();
 			} else if (event.key === "Enter") {
-				joinRoomScene.joinRoom(this.roomCode);
+				//joinRoomScene.joinRoom(this.roomCode);
 			}
 			this.roomCodeText.setText(this.roomCode.length > 0 ? this.roomCode : "_______________");
 		});
 
 		createButton(this, window.innerWidth / 2, window.innerHeight / 2 + 80, "Join", 0xDDE5B6, 0x6C584C, 120, 50, 20, () => {
-			initializeNetwork();
 			joinRoomScene.joinRoom(this.roomCode);
 		});
 	},
 
 	joinRoom: function (roomCode) {
 		if (!roomCode || roomCode.length < 6) {
-			console.error("Invalid room code");
+			console.error("❌ Invalid room code");
 			return;
 		}
 
-		socket.off('roomNotFound');
-		socket.off('roomFull');
-		socket.off('startGame');
+		console.log("🔄 Intentando unirse a la sala:", roomCode);
 
-		console.log("Attempting to join room:", roomCode);
-		socket.emit('joinRoom', roomCode, (response) => {
-			if (response.success) {
-				console.log("Joined room successfully:", roomCode);
-				// Store room code for later use
-				this.roomCode = roomCode;
-
-				// Listen for game start only after successful join
-				socket.once('startConfiguration', (gameSettings) => {
-					console.log("Game starting");
-					game.scene.stop("joinRoomScene");
-					game.scene.start("multiplayerSettingsScene", {
-						roomCode: roomCode,
-						isHost: false,
-						settings: gameSettings
-					});
-				});
-
-				// If room is already ready (2 players), proceed immediately
-				if (response.roomReady) {
-					game.scene.stop("joinRoomScene");
-					game.scene.start("multiplayerSettingsScene", {
-						roomCode: roomCode,
-						isHost: false
-					});
-				}
-			} else {
-				console.error("Failed to join room:", response.error);
+		console.log("🔄 Conectando WebRTC como invitado...");
+		WebRTCManager.connect({
+			roomCode: roomCode,
+			isHost: false,
+			onReady: () => {
+				console.log("🟢 Guest conectado a WebRTC.");
 			}
 		});
-		// Handle successful room found
-		socket.once('roomNotFound', () => {
-			console.log("Room not Found");
-		});
+		// Conexión establecida, ahora sí hacemos join
+		WebRTCManager.joinRoom(roomCode, (response) => {
+			if (response.success) {
+				console.log("🟢 Invitado conectado a WebRTC. Enviando playerJoined...");
 
-		socket.once('roomFull', () => {
-			console.log("Room is Full");
-		});
+				WebRTCManager.sendMessage({
+					type: 'playerJoined',
+					roomCode: roomCode
+				});
 
-		// Handle successful room joining
-		socket.once('playerJoined', (userId) => {
-			console.log("Joined room successfully:", roomCode);
-		});
-		socket.once('startConfiguration', (roomCode) => {
-			console.log("Game starting");
-			game.scene.stop("joinRoomScene");
-			game.scene.stop("multiplayerScene");
-			game.scene.stop("splashScene");
-			game.scene.start("multiplayerSettingsScene", { roomCode: roomCode, isHost: false });
+				game.scene.stop("joinRoomScene");
+				game.scene.start("multiplayerSettingsScene", {
+					roomCode: roomCode,
+					isHost: false
+				});
+			} else {
+				console.error("❌ Fallo al unirse a la sala:", response.error);
+			}
 		});
 	},
+	// En cada escena:
 	shutdown: function () {
-		// Limpiar listeners
-		socket.off('playerJoined');
-		socket.off('joinRoom');
-		socket.off('startConfiguration');
+		WebRTCManager.offAll();
 	}
+
 };
 game.scene.add("joinRoomScene", joinRoomScene);
 
@@ -903,6 +841,7 @@ var multiplayerSettingsScene = {
 		this.load.spritesheet('player', 'assets/player.png', { frameWidth: 19, frameHeight: 48 });
 	},
 	create: function (data) {
+		console.log("🔄 Cargando escena multiplayerSettingsScene...");
 		if (!data || !data.roomCode) {
 			console.error("No room code provided");
 			game.scene.stop("multiplayerSettingsScene");
@@ -921,7 +860,41 @@ var multiplayerSettingsScene = {
 		this.cameras.main.setBackgroundColor('#F0EAD2');
 		this.cameras.main.fadeIn(500, 255, 255, 255);
 		settingsOffset = 0;
+		function broadcastSettings() {
+			if (!multiplayerSettingsScene.isHost) return;
 
+			const settings = {
+				noteReference: firstNote,
+				modalScaleName: modalScaleName,
+				gameModality: gameModality
+			};
+
+			WebRTCManager.sendMessage({
+				type: "settingsUpdated",
+				roomCode: multiplayerSettingsScene.roomCode,
+				settings: settings
+			});
+		}
+
+		// 💬 ESCUCHAR CAMBIOS si es INVITADO
+		if (!this.isHost) {
+			WebRTCManager.onMessage((data) => {
+				if (data.type === 'settingsUpdated' && data.roomCode === this.roomCode) {
+					const newSettings = data.settings;
+
+					firstNote = newSettings.noteReference;
+					modalScaleName = newSettings.modalScaleName;
+					gameModality = newSettings.gameModality;
+
+					firstNoteText.setText(firstNote);
+					changeNoteReference(firstNote);
+
+					modalScaleText.setText(modalScaleName.charAt(0).toUpperCase() + modalScaleName.slice(1));
+					updateModalScaleButton();
+					updateButtonStyles();
+				}
+			});
+		}
 		// Animation to the left
 		settingsPlayer = this.physics.add.sprite(resolution[0] / 2 - 400, resolution[1] / 2 - 100, 'player').setScale(resolution[1] / 636);
 		settingsPlayer.setCollideWorldBounds(false);
@@ -999,6 +972,7 @@ var multiplayerSettingsScene = {
 				playNote(firstNote, 1.5);
 
 			}
+			broadcastSettings();
 		});
 
 		nextNote = this.add.text(resolution[0] / 2 + settingsOffset + 50 - 100, resolution[1] / 3.6, ">", { font: "bold 22px Arial", fill: "#6C584C" }).setOrigin(0.5);
@@ -1031,6 +1005,7 @@ var multiplayerSettingsScene = {
 				changeNoteReference(firstNote);
 				playNote(firstNote, 1.5);
 			}
+			broadcastSettings();
 		});
 
 		let buttonGraphics = this.add.graphics();
@@ -1105,7 +1080,7 @@ var multiplayerSettingsScene = {
 			modalScaleName = scales[startGameLevel];
 			changeScaleReference(modalScaleName);
 			updateModalScaleButton();
-			modalScaleText.setText(modalScaleName.charAt(0).toUpperCase() + modalScaleName.slice(1));
+			modalScaleText.setText(modalScaleName.charAt(0).toUpperCase() + modalScaleName.slice(1)); broadcastSettings();
 		});
 
 		nextScale = this.add.text(resolution[0] / 2 + settingsOffset, resolution[1] / 1.44, ">", { font: "bold 22px Arial", fill: "#6C584C" }).setOrigin(0.5);
@@ -1120,7 +1095,8 @@ var multiplayerSettingsScene = {
 			modalScaleName = scales[startGameLevel];
 			changeScaleReference(modalScaleName);
 			updateModalScaleButton();
-			modalScaleText.setText(modalScaleName.charAt(0).toUpperCase() + modalScaleName.slice(1));
+			modalScaleButton.text.setText(modalScaleName.charAt(0).toUpperCase() + modalScaleName.slice(1));
+			broadcastSettings();
 		});
 
 		function createButton(scene, x, y, text, bgColor, textColor, callback) {
@@ -1151,6 +1127,7 @@ var multiplayerSettingsScene = {
 			function () {
 				gameModality = GAME_MODE.STATIC;
 				updateButtonStyles();
+				broadcastSettings();
 			});
 		let gameModalityProgressive = createButton(this, resolution[0] / 2 + settingsOffset + 160, resolution[1] / 1.6,
 			"Progressive", gameModality === GAME_MODE.STATIC ? 0xDDE5B6 : 0xADC178,
@@ -1158,6 +1135,7 @@ var multiplayerSettingsScene = {
 			function () {
 				gameModality = GAME_MODE.PROGRESSIVE;
 				updateButtonStyles();
+				broadcastSettings();
 			});
 
 		function updateButtonStyles() {
@@ -1190,10 +1168,6 @@ var multiplayerSettingsScene = {
 			startGame.setShadow(2, 2, 'rgba(0,0,0,0.5)', 2);
 			startGame.setInteractive();
 			startGame.on('pointerdown', function () {
-				// game.anims.anims.clear() //Remove player animations before restarting the game
-				// game.textures.remove("grid-texture"); //Remove canvas texture before restarting the game
-				// game.scene.start("playScene");
-				// game.scene.stop("settingsScene");
 				askForStartGame = true;
 			});
 
@@ -1202,7 +1176,7 @@ var multiplayerSettingsScene = {
 					game.anims.anims.clear() //Remove player animations before restarting the game
 					game.textures.remove("grid-texture"); //Remove canvas texture before restarting the game
 
-					multiplayerSettingsScene.startGameForHost(this.roomCode,settings);
+					multiplayerSettingsScene.startGameForHost(settings, this);
 					game.scene.stop("multiplayerSettingsScene");
 				}
 			});
@@ -1220,14 +1194,18 @@ var multiplayerSettingsScene = {
 			this.add.text(resolution[0] / 2, resolution[1] / 1.2, "Waiting for host to start the game...",
 				{ font: "bold 32px Arial", fill: "#6C584C" }).setOrigin(0.5);
 			// Escuchar cuando el host inicia el juego
-			socket.on('gameStarting', (data) => {
-				console.log("Received gameStarting event", data);
-				if (data.roomCode === this.roomCode) {
+			WebRTCManager.onMessage((data) => {
+				if (data.type === 'gameStarting' && data.roomCode === this.roomCode) {
 					console.log("Starting game as guest...");
-					multiplayerSettingsScene.startGameForGuest(data.roomCode,data.settings);
+					multiplayerSettingsScene.startGameForGuest(data.settings, this);
 				}
 			});
-			socket.emit('playerReady', this.roomCode);
+
+			WebRTCManager.sendMessage({
+				type: 'playerReady',
+				roomCode: this.roomCode
+			});
+
 		}
 	},
 	update: function () {
@@ -1245,67 +1223,50 @@ var multiplayerSettingsScene = {
 				modalScaleName: modalScaleName,
 				gameModality: gameModality
 			};
-
-			// Notificar a todos los jugadores que el juego comienza
-			socket.emit('hostStartingGame',
-				this.roomCode,
-				settings
-			);
-			multiplayerSettingsScene.startGameForHost(settings);
+			multiplayerSettingsScene.startGameForHost(settings, this);
 		}
 	},
-	startGameForHost: function (roomCode,settings) {
-		this.roomCode = roomCode;
-		console.log("roomCode", roomCode);
-		this.peerConnection = initializeWebRTC(this.roomCode, isHost =true, (pc) => {
-			console.log("WebRTC connection established");
-			console.log("roomCode", this.roomCode);
+	startGameForHost: function (settings, scene) {
+		WebRTCManager.sendMessage({
+			type: 'gameStarting',
+			roomCode: scene.roomCode, // ✅ usamos `scene` en lugar de `this`
+			settings: settings
 		});
+
 		game.anims.anims.clear();
-		game.textures.remove("grid-texture");
 		game.scene.stop("multiplayerSettingsScene");
+
 		game.scene.start("playSceneMultiplayer", {
-			roomCode: this.roomCode,
+			roomCode: scene.roomCode,
 			isHost: true,
-			settings: settings,
-			peerConnection: this.peerConnection,
-			dataChannel: this.dataChannel
+			settings: settings
 		});
 	},
-	startGameForGuest: function (roomcode, settings) {
 
-		this.roomCode = roomcode;
-		console.log("roomCode", this.roomCode);
-		this.peerConnection = initializeWebRTC(this.roomCode , isHost =false, (pc) => {
-			console.log("WebRTC connection established");
-			console.log("roomCode", this.roomCode);
-		});
+	startGameForGuest: function (settings, scene) {
 		game.anims.anims.clear();
-		game.textures.remove("grid-texture");
+
 		game.scene.stop("splashScene");
 		game.scene.stop("multiplayerScene");
 		game.scene.stop("createRoomScene");
 		game.scene.stop("joinRoomScene");
 		game.scene.stop("multiplayerSettingsScene");
-		game.scene.start("playSceneMultiplayer", {
-			roomCode: this.roomCode,
-			isHost: false,
-			settings: settings,
-			peerConnection: this.peerConnection,
-			dataChannel: this.dataChannel
-		});
 
-	},
+		game.scene.start("playSceneMultiplayer", {
+			roomCode: scene.roomCode,
+			isHost: false,
+			settings: settings
+		});
+	}
+
+	,
 	shutdown: function () {
 		// Clean up socket listeners
-		socket.off('gameStarting');
-		socket.off('settingsUpdated');
+		WebRTCManager.offAll();
 	}
 };
 game.scene.add("multiplayerSettingsScene", multiplayerSettingsScene);
-function loadSettings() {
 
-}
 var playSceneMultiplayer = {
 	preload: function () {
 		playerWidth = 19;
@@ -1318,7 +1279,8 @@ var playSceneMultiplayer = {
 	},
 	create: function (data) {
 		console.log("Pantalla multijugador");
-		if (!data || !data.roomCode) {        
+		console.log("Datos recibidos en playSceneMultiplayer:", data);
+		if (!data || !data.roomCode) {
 			console.error("No room ID provided - Returning to menu");
 			game.scene.start("multiplayerScene");
 			return;
@@ -1326,176 +1288,61 @@ var playSceneMultiplayer = {
 
 		// Guardar referencia al contexto
 		const scene = this;
-		this.currentRoomId = data.roomCode;
-		this.isHost = data.isHost || false;
+		this.scores = { player: 0, opponent: 0, lastUpdate: 0 };
+		this.currentRoomId = data.roomCode || '';
+		this.isHost = !!data.isHost;
+		this.gameSettings = data.settings || {};
 
-		//  estado de multiplayer
-		let multiplayerState = {
-			isHost: this.isHost,
-			connected: false,
-			retryCount: 0,
-			maxRetries: 3,
-		};
+		// Conexión WebRTC ya creada en escenas anteriores
+		this.peerConnection = WebRTCManager.getPeerConnection?.();
+		this.dataChannel = WebRTCManager.getDataChannel?.();
+		console.log("🧩 Verificando conexión WebRTC en playSceneMultiplayer...");
+		console.log("📡 peerConnection:", this.peerConnection);
+		console.log("📦 dataChannel:", this.dataChannel);
+		console.log("📦 dataChannel.readyState:", this.dataChannel?.readyState);
 
-		// Configurar handlers del DataChannel
-		this.setupDataChannelHandlers = function () {
-			if (!scene.dataChannel) return;
+		// Intentar reconectar si la dataChannel no está abierta
+		if (!this.dataChannel || this.dataChannel.readyState !== 'open') {
+			console.warn("⚠️ DataChannel no disponible. Intentando reconectar...");
+			const socket = WebRTCManager.getSocket?.();
 
-			scene.dataChannel.onopen = () => {
-				console.log("[DataChannel] Canal abierto - ReadyState:", scene.dataChannel.readyState);
-				multiplayerState.connected = true;
+			if (socket && !this.peerConnection) {
+				WebRTCManager.connect({
+					roomCode: this.currentRoomId,
+					isHost: this.isHost,
+					onReady: ({ peerConnection, dataChannel }) => {
+						console.log("🟢 Reconexión WebRTC establecida en playSceneMultiplayer");
+						this.peerConnection = peerConnection;
+						this.dataChannel = dataChannel;
 
-				if (scene.scores && scene.scores.player) {
-					scene.sendData({
-						type: "scoreUpdate",
-						score: scene.scores.player,
-						timestamp: Date.now()
-					});
-				}
-			};
-
-			scene.dataChannel.onclose = () => {
-				console.log("[DataChannel] Canal cerrado");
-				multiplayerState.connected = false;
-			};
-
-			scene.dataChannel.onerror = (error) => {
-				console.error("[DataChannel] Error:", error);
-			};
-
-			scene.dataChannel.onmessage = (event) => {
-				try {
-					const message = JSON.parse(event.data);
-					scene.handleMessage(message);
-				} catch (error) {
-					console.error("[DataChannel] Error al parsear:", error);
-				}
-			};
-		};
-
-		// Configurar handlers WebRTC
-		this.setupWebRTCHandlers = function () {
-			scene.webrtcHandlers = {
-				offer: async (offer) => {
-					console.log("[WebRTC] Oferta recibida");
-					try {
-						await scene.peerConnection.setRemoteDescription(offer);
-						const answer = await scene.peerConnection.createAnswer();
-						await scene.peerConnection.setLocalDescription(answer);
-						socket.emit('answer', scene.currentRoomId, answer);
-					} catch (error) {
-						console.error("[WebRTC] Error al procesar oferta:", error);
+						// Test de envío tras reconexión
+						this.time.delayedCall(2000, () => {
+							if (dataChannel?.readyState === 'open') {
+								WebRTCManager.sendMessage({ type: "ping", from: this.isHost ? "host" : "guest" });
+								console.log("📤 Enviado ping tras reconexión");
+							}
+						});
 					}
-				},
-				answer: async (answer) => {
-					console.log("[WebRTC] Respuesta recibida");
-					try {
-						await scene.peerConnection.setRemoteDescription(answer);
-					} catch (error) {
-						console.error("[WebRTC] Error al procesar respuesta:", error);
-					}
-				},
-				iceCandidate: async (candidate) => {
-					try {
-						await scene.peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
-					} catch (error) {
-						console.error("[WebRTC] Error al agregar ICE candidate:", error);
-					}
-				}
-			};
-
-			socket.on('offer', scene.webrtcHandlers.offer);
-			socket.on('answer', scene.webrtcHandlers.answer);
-			socket.on('iceCandidate', scene.webrtcHandlers.iceCandidate);
-		};
-
-		// Función para crear oferta
-		this.createOffer = async function () {
-			try {
-				console.log("[WebRTC] Creando oferta...");
-				const offer = await scene.peerConnection.createOffer();
-				await scene.peerConnection.setLocalDescription(offer);
-				socket.emit('offer', scene.currentRoomId, offer);
-				console.log("[WebRTC] Oferta enviada");
-			} catch (error) {
-				console.error("[WebRTC] Error al crear oferta:", error);
-			}
-		};
-
-		// Función para enviar datos
-		this.sendData = function (data) {
-			if (scene.dataChannel && scene.dataChannel.readyState === 'open') {
-				try {
-					scene.dataChannel.send(JSON.stringify(data));
-				} catch (error) {
-					console.error("[DataChannel] Error al enviar datos:", error);
-				}
-			} else {
-				console.warn("[DataChannel] Canal no disponible o no abierto");
-			}
-		};
-
-		// Manejar conexión WebRTC
-		if (data.peerConnection && data.dataChannel) {
-			// Reutilizar conexión existente
-			console.log("[WebRTC] Reutilizando conexión existente");
-			this.peerConnection = data.peerConnection;
-			this.dataChannel = data.dataChannel;
-			this.setupDataChannelHandlers();
-			multiplayerState.connected = true;
-		} else {
-			// Nueva conexión
-			console.log("[WebRTC] Inicializando nueva conexión");
-			this.peerConnection = new RTCPeerConnection({
-				iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
-			});
-
-			// Configurar eventos básicos
-			this.peerConnection.oniceconnectionstatechange = () => {
-				console.log(`[WebRTC] ICE State: ${this.peerConnection.iceConnectionState}`);
-			};
-
-			this.peerConnection.onconnectionstatechange = () => {
-				console.log(`[WebRTC] Connection State: ${this.peerConnection.connectionState}`);
-			};
-
-			this.peerConnection.onicecandidate = (event) => {
-				if (event.candidate) {
-					console.log(`[WebRTC] Enviando ICE Candidate`);
-					socket.emit('iceCandidate', this.currentRoomId, event.candidate);
-				}
-			};
-
-			// Solo el host crea el DataChannel inicial
-			if (this.isHost) {
-				console.log("[WebRTC] Host - Creando DataChannel");
-				this.dataChannel = this.peerConnection.createDataChannel('gameData', {
-					ordered: true,
-					maxRetransmits: 3
 				});
-				this.setupDataChannelHandlers();
-			}
-
-			// Handler para cuando el receptor obtiene el DataChannel
-			this.peerConnection.ondatachannel = (event) => {
-				console.log("[WebRTC] DataChannel recibido");
-				this.dataChannel = event.channel;
-				this.setupDataChannelHandlers();
-				multiplayerState.connected = true;
-			};
-
-			this.setupWebRTCHandlers();
-
-			// Solo el host crea la oferta inicial
-			if (this.isHost) {
-				this.createOffer();
 			}
 		}
-		this.scores = {
-			player: 0,
-			opponent: 0,
-			lastUpdate: 0
-		};
+
+		// Listener de mensajes
+		WebRTCManager.onMessage((message) => {
+			console.log("📩 Mensaje recibido en playSceneMultiplayer:", message);
+			this.handleMessage?.(message);
+		});
+
+
+
+		if (!this.dataChannel || this.dataChannel.readyState !== 'open') {
+			console.warn("⚠️ DataChannel no está abierto en playSceneMultiplayer");
+		}
+
+		WebRTCManager.onMessage((message) => {
+			this.handleMessage?.(message);
+		});
+
 		initVariables();
 		gameContext = this;
 		this.cameras.main.fadeIn(500, 255, 255, 255);
@@ -1572,20 +1419,125 @@ var playSceneMultiplayer = {
 		measureGrids = this.physics.add.staticGroup();
 		gridLength = measurePlatformWidth;
 		numberOfInitialMeasures = resolution[0] / measurePlatformWidth;
-		for (i = 0; i < numberOfInitialMeasures; i++) {
-			lastGrid = measureGrids.create((gameInitialX - (playerWidth / 2) + (gridLength / 2)) + (gridLength * i) - platformInitialPlayerOffset, (resolution[1] / 2) + playerHeight, 'grid-texture');
-			lastGrid.setDepth(-1);
-			lastGrid.progressiveNumber = 0;
-		}
+		// Obtener configuración de escala desde settingsScene
+const currentScale = modalScaleName; // 'ionian', 'dorian', etc.
+const baseNote = firstNote; // Ej: 'C4'
+const baseOctave = parseInt(baseNote.slice(-1));
+const noteLetter = baseNote.replace(/\d/g, ''); // Extrae solo las letras (C, C#, etc.)
 
+// Configuración de escalas modales mejorada
+const modalScales = {
+    'ionian':     [0, 2, 4, 5, 7, 9, 11],  // Escala mayor
+    'dorian':     [0, 2, 3, 5, 7, 9, 10],
+    'phrygian':   [0, 1, 3, 5, 7, 8, 10],
+    'lydian':     [0, 2, 4, 6, 7, 9, 11],
+    'mixolydian': [0, 2, 4, 5, 7, 9, 10],
+    'aeolian':    [0, 2, 3, 5, 7, 8, 10],  // Escala menor natural
+    'locrian':    [0, 1, 3, 5, 6, 8, 10]
+};
+
+const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+
+// Función para generar las notas de la escala actual
+function getScaleNotes() {
+    const scaleIntervals = modalScales[currentScale];
+    const baseIndex = noteNames.indexOf(noteLetter);
+    let notes = [];
+    
+    // Generar 1 octavas de la escala
+    for (let oct = 0; oct < 1; oct++) {
+        scaleIntervals.forEach(interval => {
+            const noteIndex = (baseIndex + interval) % 12;
+            const currentOctave = baseOctave + oct;
+            notes.push({
+                name: noteNames[noteIndex],
+                octave: currentOctave,
+                fullName: noteNames[noteIndex] + currentOctave,
+                isSharp: noteNames[noteIndex].includes('#')
+            });
+        });
+    }
+    
+    return notes;
+}
+
+const scaleNotes = getScaleNotes();
+
+// Crear el grid con referencias de piano
+for (let i = 0; i < numberOfInitialMeasures; i++) {
+    const gridX = (gameInitialX - (playerWidth / 2) + (gridLength / 2)) + (gridLength * i) - platformInitialPlayerOffset;
+    const gridY = (resolution[1] / 2) + playerHeight;
+    
+    lastGrid = measureGrids.create(gridX, gridY, 'grid-texture');
+    lastGrid.setDepth(-1);
+    lastGrid.progressiveNumber = 0;
+    
+    // Añadir referencias de piano solo en la primera columna
+    if (i === 0) {
+        const totalHeight = lastGrid.displayHeight;
+        const keyHeight = totalHeight / scaleNotes.length;
+        const pianoWidth = 60; // Ancho reducido para las teclas
+        
+        // Posición inicial (pegado al borde izquierdo del grid)
+        const pianoStartX = gridX - lastGrid.displayWidth/2;
+        const pianoStartY = gridY - lastGrid.displayHeight/2;
+        
+        // Añadir título de la escala
+        const scaleTitle = this.add.text(
+            pianoStartX + 5,
+            pianoStartY - 20,
+            `${noteLetter} ${currentScale}`,
+            { font: '14px Arial', fill: '#6C584C' }
+        );
+        scaleTitle.setDepth(0);
+        
+        // Añadir notas de la escala
+        scaleNotes.forEach((note, index) => {
+			const yPos = pianoStartY + (keyHeight * index );
+            // Crear fondo de la tecla
+            const keyBg = this.add.rectangle(
+                pianoStartX,
+                yPos,
+                pianoWidth,
+                keyHeight ,
+                note.isSharp ? 0x333333 : 0xFFFFFF
+            ).setOrigin(0,0);
+            ;
+            
+            // Crear texto de la nota
+            const noteText = this.add.text(
+               pianoStartX + pianoWidth / 2,
+				yPos + keyHeight / 2,
+                note.fullName,
+                { 
+                    font: '12px Arial', 
+                    fill: note.isSharp ? '#FFFFFF' : '#000000',
+                    align: 'center'
+                }
+            );
+            noteText.setOrigin(0.5);
+            
+            // Hacer la nota interactiva
+            noteText.setInteractive();
+            noteText.on('pointerdown', () => {
+                playNote(note.fullName, 1.0);
+                
+                // Efecto visual al tocar
+                this.tweens.add({
+                    targets: keyBg,
+                    fillColor: note.isSharp ? 0x555555 : 0xDDDDDD,
+                    duration: 100,
+                    yoyo: true
+                });
+            });
+        });
+    }
+}
 
 		//Creation of collider between the player and the platforms, with a callback function
 		collider = this.physics.add.collider(player, platforms, platformsColliderCallback);
 		scoreText = this.add.text(16, 16, 'Score: ' + score, { fontSize: fontSize + 'px', fill: fontColor, fontFamily: "Arial" });
-		opponentScoreText = this.add.text(16, 40, 'Opponent: 0', { fontSize: fontSize + 'px', fill: fontColor, fontFamily: "Arial" });
-		socket.on('opponentScoreUpdate', this.handleOpponentUpdate);
-		socket.on('playerDisconnected', this.handleDisconnection);
-		socket.on('reconnect', this.handleReconnection);
+		opponentScoreText = this.add.text(16, 40, 'Opponent: 0', { fontSize: fontSize + 'px', fill: fontColor, fontFamily: "Arial" }).setScrollFactor(0);
 		this.startTime = this.time.now / 1000;
 		this.timeText = this.add.text(200, 16, 'Time: 0s', { fontSize: fontSize + 'px', fill: fontColor, fontFamily: "Arial" });
 		referenceNoteButton = this.add.text(resolution[0], playerHeight * 2.2, 'Play Reference', { fontSize: fontSize + 'px', fill: fontColor, fontFamily: "Arial" });
@@ -1608,7 +1560,9 @@ var playSceneMultiplayer = {
 		currentScaleTextDesc.setX(currentScaleText.x - currentScaleText.width);
 		this.input.on('pointerdown', function () {
 		}, this);
-		statusText = this.add.text(resolution[0] / 2, playerHeight * 3 / 2, 'Space/Enter To Play!', { font: "bold 40px Arial", fill: fontColor }).setOrigin(0.5);
+
+		const initialStatusText = this.isHost ? "To Play =>!" : "Waiting for Host...";
+		statusText = this.add.text(resolution[0] / 2, playerHeight * 3 / 2, initialStatusText, { font: "bold 40px Arial", fill: fontColor }).setOrigin(0.5);
 		statusText.setShadow(2, 2, '#F0EAD2', 2);
 		statusText.setAlign('center');
 		tween = gameContext.add.tween({ targets: statusText, ease: 'Sine.easeInOut', duration: 300, delay: 0, alpha: { getStart: () => 0, getEnd: () => 1 } });
@@ -1618,20 +1572,35 @@ var playSceneMultiplayer = {
 		centeredText = this.add.text(resolution[0] / 2, resolution[1] / 2, '', { font: "bold 190px Arial", fill: fontColor }).setOrigin(0.5);
 		centeredText.setShadow(5, 5, '#F0EAD2', 5);
 		centeredText.setAlign('center');
-		playPauseButton = this.add.image(resolution[0] - 100, (playerHeight * 0.6), 'play').setScale(0.8);
-		playPauseButton.setInteractive();
-		playPauseButton.on('pointerdown', function () {
-			manageStatus();
-		});
-		settingsButton = this.add.image(resolution[0] - (playerHeight * resolution[1] / 636) / 2 - 10, (playerHeight * 0.6), 'settings').setScale(0.6);
-		settingsButton.setInteractive();
-		settingsButton.on('pointerdown', function () {
-			game.scene.stop("playSceneMultiplayer");
-			game.scene.stop("gamoverScene");
-			game.scene.stop("pauseScene");
-			game.scene.start("settingsScene");
-		});
-		gameStatus = "Started";
+		if (this.isHost) {
+			playPauseButton = this.add.image(resolution[0] - 100, (playerHeight * 0.6), 'play').setScale(0.8);
+			playPauseButton.setInteractive();
+			playPauseButton.on('pointerdown', function () {
+				WebRTCManager.sendMessage({
+					type: 'hostStartingGame',
+					roomCode: this.roomCode
+				});
+				console.log("📤 Iniciar partida enviado vía WebRTC:", score);
+				manageStatus();
+			});
+			settingsButton = this.add.image(resolution[0] - (playerHeight * resolution[1] / 636) / 2 - 10, (playerHeight * 0.6), 'settings').setScale(0.6);
+			settingsButton.setInteractive();
+			settingsButton.on('pointerdown', function () {
+				game.scene.stop("playSceneMultiplayer");
+				game.scene.stop("gamoverScene");
+				game.scene.stop("pauseScene");
+				game.scene.start("multiplayerSettingsScene");
+			});
+			gameStatus = "Started";
+		} else if (!this.isHost) {
+			WebRTCManager.onMessage((message) => {
+				if (message.type === 'hostStartingGame' && message.roomCode === this.roomCode) {
+					console.log("Starting game as guest...");
+					manageStatus();
+				}
+			});
+			gameStatus = "Started";
+		}
 	},
 
 	update: function () {
@@ -1736,17 +1705,22 @@ var playSceneMultiplayer = {
 					score++;
 					this.scores.player = score;
 					scoreText.setText('Score: ' + score);
-					socket.emit('updateScore', {
-						roomId: this.currentRoomId,
-						score: score
-					});
-					if (this.dataChannel && this.dataChannel.readyState === 'open') {
-						sendData(this.dataChannel, {
+					if (this.dataChannel?.readyState === 'open') {
+						WebRTCManager.sendMessage({
 							type: "scoreUpdate",
-							score: score,
+							score: this.scores.player,
 							timestamp: Date.now()
 						});
-					} statusText.setText("Sing!");
+						console.log("📤 Puntaje enviado vía WebRTC:", score);
+					} else {
+						console.warn("⚠️ No se pudo enviar el puntaje: canal cerrado");
+					}
+					WebRTCManager.onMessage((message) => {
+						console.log("📩 Mensaje recibido en playSceneMultiplayer:", message);
+						this.scores.opponent = message.score;
+						opponentScoreText.setText('Opponent: ' + message.score);
+					});
+					statusText.setText("Sing!");
 					tween = gameContext.add.tween({ targets: statusText, ease: 'Sine.easeInOut', duration: 300, delay: 0, alpha: { getStart: () => 1, getEnd: () => 0 } });
 					tween2 = gameContext.add.tween({ targets: statusText, ease: 'Sine.easeInOut', duration: 300, delay: 0, alpha: { getStart: () => 1, getEnd: () => 0 } });
 					tween.setCallback(function () {
@@ -1870,33 +1844,24 @@ var playSceneMultiplayer = {
 		}
 
 	},
+	sendData: function (data) {
+		//WebRTCManager.sendMessage(data);
+	},
 	handleMessage: function (message) {
 		try {
-			console.log("Message received:", message);
 			if (message.type === "scoreUpdate") {
-				console.log("Opponent Score Updated via WebRTC:", message.score);
-				this.opponentScoreText.setText('Opponent: ' + message.score);
+				console.log("🎯 Puntaje del oponente recibido:", message.score);
+				this.scores.opponent = message.score;
+				if (this.opponentScoreText?.setText) {
+					opponentScoreText.setText('Opponent: ' + message.score);
+				} else {
+					console.warn("⚠️ opponentScoreText no está listo para actualizar");
+				}
 			}
 		} catch (error) {
-			console.error("Error handling message:", error);
+			console.error("❌ Error al procesar mensaje WebRTC:", error);
 		}
 	},
-	handleOpponentUpdate: function (data) {
-		if (data.roomId === this.currentRoomId) {
-			this.scores.opponent = data.score;
-			this.opponentScoreText.setText(`RIVAL: ${data.score}`);
-
-			// Sincronización adicional por WebRTC si está disponible
-			if (this.dataChannel && this.dataChannel.readyState === 'open') {
-				sendData(this.dataChannel, {
-					type: "scoreSync",
-					score: this.scores.player,
-					timestamp: Date.now()
-				});
-			}
-		}
-	},
-
 	handleDisconnection: function () {
 		const warningText = this.add.text(resolution[0] / 2, resolution[1] / 2,
 			"OPPONENT DISCONNECTED\nReturning to menu...",
@@ -1915,12 +1880,14 @@ var playSceneMultiplayer = {
 
 	handleReconnection: function () {
 		// Re-enviar el puntaje actual al reconectar
-		if (this.scores.player > 0) {
-			socket.emit('updateScore', {
+		/*if (this.scores.player > 0) {
+			WebRTCManager.sendMessage({
+				type: "scoreUpdate",
 				roomId: this.currentRoomId,
-				score: this.scores.player
+				score: this.scores.player,
+				timestamp: Date.now()
 			});
-		}
+		}*/
 
 		// Mostrar notificación al jugador
 		const reconnectText = this.add.text(resolution[0] / 2, 100,
@@ -1941,20 +1908,10 @@ var playSceneMultiplayer = {
 	},
 	shutdown: function () {
 		// Limpiar listeners de socket
-		if (this.webrtcHandlers) {
-			socket.off('offer', this.webrtcHandlers.offer);
-			socket.off('answer', this.webrtcHandlers.answer);
-			socket.off('iceCandidate', this.webrtcHandlers.iceCandidate);
-		}
-
-		// Cerrar conexión WebRTC
-		if (this.peerConnection) {
-			this.peerConnection.close();
-		}
+		WebRTCManager.offAll();
 	}
 };
 game.scene.add("playSceneMultiplayer", playSceneMultiplayer);
-
 var playScene = {
 	preload: function () {/*
 		//Needed to be set here to set the player dimension correctly
@@ -1968,8 +1925,8 @@ var playScene = {
 		this.load.image('pause', 'assets/pause.png');
 		this.load.image('settings', 'assets/settings.png');*/
 	},
-	create: function () {/*
-
+	create: function () {
+/*
 		initVariables();
 		gameContext = this;
 
@@ -2085,11 +2042,121 @@ var playScene = {
 
 		gridLength = measurePlatformWidth;
 		numberOfInitialMeasures = resolution[0] / measurePlatformWidth;
-		for (i = 0; i < numberOfInitialMeasures; i++) {
-			lastGrid = measureGrids.create((gameInitialX - (playerWidth / 2) + (gridLength / 2)) + (gridLength * i) - platformInitialPlayerOffset, (resolution[1] / 2) + playerHeight, 'grid-texture');
-			lastGrid.setDepth(-1);
-			lastGrid.progressiveNumber = 0; //zero identifies all the grids created when the game is started
-		}
+
+// Obtener configuración de escala desde settingsScene
+const currentScale = modalScaleName; // 'ionian', 'dorian', etc.
+const baseNote = firstNote; // Ej: 'C4'
+const baseOctave = parseInt(baseNote.slice(-1));
+const noteLetter = baseNote.replace(/\d/g, ''); // Extrae solo las letras (C, C#, etc.)
+
+// Configuración de escalas modales mejorada
+const modalScales = {
+    'ionian':     [0, 2, 4, 5, 7, 9, 11],  // Escala mayor
+    'dorian':     [0, 2, 3, 5, 7, 9, 10],
+    'phrygian':   [0, 1, 3, 5, 7, 8, 10],
+    'lydian':     [0, 2, 4, 6, 7, 9, 11],
+    'mixolydian': [0, 2, 4, 5, 7, 9, 10],
+    'aeolian':    [0, 2, 3, 5, 7, 8, 10],  // Escala menor natural
+    'locrian':    [0, 1, 3, 5, 6, 8, 10]
+};
+
+const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+
+// Función para generar las notas de la escala actual
+function getScaleNotes() {
+    const scaleIntervals = modalScales[currentScale];
+    const baseIndex = noteNames.indexOf(noteLetter);
+    let notes = [];
+    
+    // Generar 1 octavas de la escala
+    for (let oct = 0; oct < 1; oct++) {
+        scaleIntervals.forEach(interval => {
+            const noteIndex = (baseIndex + interval) % 12;
+            const currentOctave = baseOctave + oct;
+            notes.push({
+                name: noteNames[noteIndex],
+                octave: currentOctave,
+                fullName: noteNames[noteIndex] + currentOctave,
+                isSharp: noteNames[noteIndex].includes('#')
+            });
+        });
+    }
+    
+    return notes;
+}
+
+const scaleNotes = getScaleNotes();
+
+// Crear el grid con referencias de piano
+for (let i = 0; i < numberOfInitialMeasures; i++) {
+    const gridX = (gameInitialX - (playerWidth / 2) + (gridLength / 2)) + (gridLength * i) - platformInitialPlayerOffset;
+    const gridY = (resolution[1] / 2) + playerHeight;
+    
+    lastGrid = measureGrids.create(gridX, gridY, 'grid-texture');
+    lastGrid.setDepth(-1);
+    lastGrid.progressiveNumber = 0;
+    
+    // Añadir referencias de piano solo en la primera columna
+    if (i === 0) {
+        const totalHeight = lastGrid.displayHeight;
+        const keyHeight = totalHeight / scaleNotes.length;
+        const pianoWidth = 60; // Ancho reducido para las teclas
+        
+        // Posición inicial (pegado al borde izquierdo del grid)
+        const pianoStartX = gridX - lastGrid.displayWidth/2;
+        const pianoStartY = gridY - lastGrid.displayHeight/2;
+        
+        // Añadir título de la escala
+        const scaleTitle = this.add.text(
+            pianoStartX + 5,
+            pianoStartY - 20,
+            `${noteLetter} ${currentScale}`,
+            { font: '14px Arial', fill: '#6C584C' }
+        );
+        scaleTitle.setDepth(0);
+        
+        // Añadir notas de la escala
+        scaleNotes.forEach((note, index) => {
+			const yPos = pianoStartY + (keyHeight * index );
+            // Crear fondo de la tecla
+            const keyBg = this.add.rectangle(
+                pianoStartX,
+                yPos,
+                pianoWidth,
+                keyHeight ,
+                note.isSharp ? 0x333333 : 0xFFFFFF
+            ).setOrigin(0,0);
+            ;
+            
+            // Crear texto de la nota
+            const noteText = this.add.text(
+               pianoStartX + pianoWidth / 2,
+				yPos + keyHeight / 2,
+                note.fullName,
+                { 
+                    font: '12px Arial', 
+                    fill: note.isSharp ? '#FFFFFF' : '#000000',
+                    align: 'center'
+                }
+            );
+            noteText.setOrigin(0.5);
+            
+            // Hacer la nota interactiva
+            noteText.setInteractive();
+            noteText.on('pointerdown', () => {
+                playNote(note.fullName, 1.0);
+                
+                // Efecto visual al tocar
+                this.tweens.add({
+                    targets: keyBg,
+                    fillColor: note.isSharp ? 0x555555 : 0xDDDDDD,
+                    duration: 100,
+                    yoyo: true
+                });
+            });
+        });
+    }
+}
 
 
 		//Creation of collider between the player and the platforms, with a callback function
@@ -2494,6 +2561,7 @@ var playScene = {
 }
 game.scene.add("playScene", playScene);
 
+
 var pauseScene = {
 	create: function () {
 		//Change Reference Button
@@ -2516,12 +2584,12 @@ var pauseScene = {
 		tween = this.add.tween({ targets: statusText, ease: 'Sine.easeInOut', duration: 300, delay: 0, alpha: { getStart: () => 0, getEnd: () => 1 } });
 
 		//Play Pause Button
-		playPauseButton.destroy();
+		/*playPauseButton.destroy();
 		playPauseButton = this.add.image(resolution[0] - 100, (playerHeight * 0.6), 'play').setScale(0.8);
 		playPauseButton.setInteractive();
 		playPauseButton.on('pointerdown', function () {
 			manageStatus();
-		});
+		});*/
 
 		//Settings button
 		settingsButton = this.add.image(resolution[0] - (playerHeight * resolution[1] / 636) / 2 - 10, (playerHeight * 0.6), 'settings').setScale(0.6);
@@ -2598,15 +2666,15 @@ var gameoverScene = {
 		});
 
 		//Restart button
-		playPauseButton.destroy();
-		playPauseButton = gameoverContext.add.image(resolution[0] - 100, (playerHeight * 0.6), 'restart').setScale(0.6);
-		playPauseButton.setInteractive();
-		playPauseButton.on('pointerdown', function () {
+		//playPauseButton.destroy();
+		//playPauseButton = gameoverContext.add.image(resolution[0] - 100, (playerHeight * 0.6), 'restart').setScale(0.6);
+		//playPauseButton.setInteractive();
+		/*playPauseButton.on('pointerdown', function () {
 			game.anims.anims.clear() //Remove player animations before restarting the game
 			game.textures.remove("grid-texture"); //Remove canvas texture before restarting the game
 			game.scene.start("playSceneMultiplayer");
 			game.scene.stop("gameoverScene");
-		});
+		});*/
 
 		//Settings button
 		settingsButton = gameoverContext.add.image(resolution[0] - (playerHeight * resolution[1] / 636) / 2 - 10, (playerHeight * 0.6), 'settings').setScale(0.6);
@@ -2620,8 +2688,6 @@ var gameoverScene = {
 	}
 }
 game.scene.add("gameoverScene", gameoverScene);
-
-
 
 function createPlatformTexture(context, width, height, levelDuration, color = platformColor) {
 	graphics = context.add.graphics();
@@ -2685,7 +2751,6 @@ function createGridTexture(context, measurePlatformWidth, timeSignature) {
 	}
 	texture.refresh();
 }
-
 
 function createBackground(context, color = backgroundGridColor, black = false) {
 
@@ -2842,10 +2907,10 @@ function manageStatus() {
 	switch (gameStatus) {
 
 		case "Started": //The game should start running
-			pitchDetector.resumeAudioContext()	//to enable the AudioContext of PitchDetector
+			//pitchDetector.resumeAudioContext()	//to enable the AudioContext of PitchDetector
 			pitchDetector.start(); //Restart the pitch detector after resuming the AudioContext
 			game.scene.resume("playSceneMultiplayer"); //Starting scene (update() function starts looping)
-			playPauseButton.setTexture('pause');
+			//playPauseButton.setTexture('pause');
 
 			if (pitchDetector.isEnable()) {
 				pitchDetector.toggleEnable();
@@ -2872,12 +2937,12 @@ function manageStatus() {
 				game.scene.resume("playSceneMultiplayer");
 				game.scene.stop("pauseScene");
 
-				playPauseButton.destroy();
-				playPauseButton = gameContext.add.image(resolution[0] - 100, (playerHeight * 0.6), 'pause').setScale(0.8);
-				playPauseButton.setInteractive();
-				playPauseButton.on('pointerdown', function () {
-					manageStatus();
-				});
+				//playPauseButton.destroy();
+				//playPauseButton = gameContext.add.image(resolution[0] - 100, (playerHeight * 0.6), 'pause').setScale(0.8);
+				//playPauseButton.setInteractive();
+				//playPauseButton.on('pointerdown', function () {
+					//manageStatus();
+				//});
 
 				referenceNoteButton = gameContext.add.text(resolution[0] - 150, playerHeight * 2.2, 'Play Reference', { fontSize: fontSize + 'px', fill: fontColor, fontFamily: "Arial" });
 				referenceNoteButton.setBackgroundColor("#F0EAD2");
@@ -2930,12 +2995,12 @@ function manageStatus() {
 					gameContext.add.tween({ targets: statusText, ease: 'Sine.easeInOut', duration: 300, delay: 0, alpha: { getStart: () => 0, getEnd: () => 1 } });
 				}
 
-				playPauseButton.destroy();
-				playPauseButton = gameContext.add.image(resolution[0] - 100, (playerHeight * 0.6), 'pause').setScale(0.8);
-				playPauseButton.setInteractive();
-				playPauseButton.on('pointerdown', function () {
-					manageStatus();
-				});
+				//playPauseButton.destroy();
+				//playPauseButton = gameContext.add.image(resolution[0] - 100, (playerHeight * 0.6), 'pause').setScale(0.8);
+				//playPauseButton.setInteractive();
+				//playPauseButton.on('pointerdown', function () {
+				//	manageStatus();
+				//});
 
 				//Reload play reference button
 				referenceNoteButton = gameContext.add.text(resolution[0] - 150, playerHeight * 2.2, 'Play Reference', { fontSize: fontSize + 'px', fill: fontColor, fontFamily: "Arial" });
