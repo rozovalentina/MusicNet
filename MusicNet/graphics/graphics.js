@@ -1912,8 +1912,9 @@ for (let i = 0; i < numberOfInitialMeasures; i++) {
 	}
 };
 game.scene.add("playSceneMultiplayer", playSceneMultiplayer);
+
 var playScene = {
-	preload: function () {/*
+	preload: function () {
 		//Needed to be set here to set the player dimension correctly
 		playerWidth = 19;
 		playerHeight = 48;
@@ -1923,10 +1924,10 @@ var playScene = {
 		this.load.spritesheet('player-fly', 'assets/player_fly.png', { frameWidth: 28, frameHeight: playerHeight });
 		this.load.image('play', 'assets/play.png');
 		this.load.image('pause', 'assets/pause.png');
-		this.load.image('settings', 'assets/settings.png');*/
+		this.load.image('settings', 'assets/settings.png');
 	},
 	create: function () {
-/*
+
 		initVariables();
 		gameContext = this;
 
@@ -2235,10 +2236,10 @@ for (let i = 0; i < numberOfInitialMeasures; i++) {
 
 		//SETTING OF GAME STATUS
 		//------------------------------------------------------------------------------------------------------
-		gameStatus = "Started";*/
+		gameStatus = "Started";
 	},
 
-	update: function () {/*
+	update: function () {
 		let elapsedTime = Math.floor((this.time.now / 1000) - this.startTime);
 		let minutes = Math.floor(elapsedTime / 60);
 		let seconds = elapsedTime % 60;
@@ -2556,7 +2557,7 @@ for (let i = 0; i < numberOfInitialMeasures; i++) {
 				}
 				this.physics.world.colliders.destroy();
 			}
-		}*/
+		}
 	}
 }
 game.scene.add("playScene", playScene);
