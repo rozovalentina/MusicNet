@@ -124,7 +124,7 @@ var currentNoteReference;
 
 //Pitch detector initialization (here to create only one object even if the game is restarted)
 const pitchDetector = new PitchDetector();
-//pitchDetector.start();
+pitchDetector.start();
 
 
 //Game context
@@ -598,12 +598,12 @@ var settingsScene = {
 
 		if (settingsPlayer.x <= 0) {
 			game.anims.anims.clear() //Remove player animations before restarting the game
-			game.textures.remove("grid-texture"); //Remove canvas texture before restarting the game
+			//game.textures.remove("grid-texture"); //Remove canvas texture before restarting the game
 			game.scene.start("playScene");
 			game.scene.stop("settingsScene");
 		} else if (settingsPlayer2.x >= resolution[0]) {
 			game.anims.anims.clear() //Remove player animations before restarting the game
-			game.textures.remove("grid-texture"); //Remove canvas texture before restarting the game
+			//game.textures.remove("grid-texture"); //Remove canvas texture before restarting the game
 			game.scene.start("playScene");
 			game.scene.stop("settingsScene");
 		}
@@ -2908,7 +2908,7 @@ function manageStatus() {
 	switch (gameStatus) {
 
 		case "Started": //The game should start running
-			//pitchDetector.resumeAudioContext()	//to enable the AudioContext of PitchDetector
+			pitchDetector.resumeAudioContext()	//to enable the AudioContext of PitchDetector
 			pitchDetector.start(); //Restart the pitch detector after resuming the AudioContext
 			game.scene.resume("playSceneMultiplayer"); //Starting scene (update() function starts looping)
 			//playPauseButton.setTexture('pause');

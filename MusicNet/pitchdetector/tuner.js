@@ -58,65 +58,38 @@ const Tuner = function() {
   
   Tuner.prototype.startRecord = function () {
     const self = this;
+  
     navigator.mediaDevices
       .getUserMedia({ audio: true })
       .then(function (stream) {
         const source = self.audioContext.createMediaStreamSource(stream);
+        source.connect(self.analyser);
   
-        // Usando ScriptProcessorNode
-        if (self.scriptProcessor) {
-          source.connect(self.analyser);
-          self.analyser.connect(self.scriptProcessor);
-          self.scriptProcessor.connect(self.audioContext.destination);
-  
-          self.scriptProcessor.onaudioprocess = function (event) {
-            const inputData = event.inputBuffer.getChannelData(0);
-            const audioFragment = inputData.slice(0, Math.min(inputData.length, 16000));
-  
-            const wavBlob = encodeWAV(audioFragment, self.audioContext.sampleRate);
-  
-            sendToParcnetIfNeeded(wavBlob).then(correctedAudioBlob => {
-              const reader = new FileReader();
-              reader.onload = function () {
-                const arrayBuffer = reader.result;
-                self.audioContext.decodeAudioData(arrayBuffer, function (audioBuffer) {
-                  const correctedSamples = audioBuffer.getChannelData(0);
-                  const frequency = self.pitchDetector.do(correctedSamples);
-  
-                  if (frequency && self.onNoteDetected) {
-                    const note = self.getNote(frequency);
-                    self.onNoteDetected({
-                      name: self.noteStrings[note % 12],
-                      value: note,
-                      cents: self.getCents(frequency, note),
-                      octave: parseInt(note / 12) - 1,
-                      frequency: frequency
-                    });
-                  }
-                }, function (error) {
-                  console.error('Error decoding corrected audio:', error);
-                });
-              };
-              reader.readAsArrayBuffer(correctedAudioBlob);
-            }).catch(err => {
-              console.error("Error comunicando con PARCnet:", err);
-            });
-          };
-        }
-  
-        // Usando AudioWorklet
+        // AudioWorklet (moderno)
         if (self.pitchWorklet) {
-          source.connect(self.analyser);
           self.analyser.connect(self.pitchWorklet);
   
-          const processor = self.audioContext.createScriptProcessor(4096, 1, 1);
-          self.analyser.connect(processor);
+          self.pitchWorklet.port.onmessage = (event) => {
+            if (event.data.frequency && self.onNoteDetected) {
+              const note = self.getNote(event.data.frequency);
+              self.onNoteDetected({
+                name: self.noteStrings[note % 12],
+                value: note,
+                cents: self.getCents(event.data.frequency, note),
+                octave: Math.floor(note / 12) - 1,
+                frequency: event.data.frequency
+              });
+            }
+          };
+  
+          // Captura y envía audio corregido a PARCnet
+          const processor = self.audioContext.createScriptProcessor(self.bufferSize, 1, 1);
+          source.connect(processor);
           processor.connect(self.audioContext.destination);
   
           processor.onaudioprocess = function (event) {
             const inputData = event.inputBuffer.getChannelData(0);
             const audioFragment = inputData.slice(0, Math.min(inputData.length, 16000));
-  
             const wavBlob = encodeWAV(audioFragment, self.audioContext.sampleRate);
   
             sendToParcnetIfNeeded(wavBlob).then(correctedAudioBlob => {
@@ -139,11 +112,51 @@ const Tuner = function() {
             });
           };
         }
+  
+        // ScriptProcessorNode (fallback obsoleto)
+        else if (self.scriptProcessor) {
+          self.analyser.connect(self.scriptProcessor);
+          self.scriptProcessor.connect(self.audioContext.destination);
+  
+          self.scriptProcessor.onaudioprocess = function (event) {
+            const inputData = event.inputBuffer.getChannelData(0);
+            const audioFragment = inputData.slice(0, Math.min(inputData.length, 16000));
+            const wavBlob = encodeWAV(audioFragment, self.audioContext.sampleRate);
+  
+            sendToParcnetIfNeeded(wavBlob).then(correctedAudioBlob => {
+              const reader = new FileReader();
+              reader.onload = function () {
+                const arrayBuffer = reader.result;
+                self.audioContext.decodeAudioData(arrayBuffer, function (audioBuffer) {
+                  const correctedSamples = audioBuffer.getChannelData(0);
+                  const frequency = self.pitchDetector.do(correctedSamples);
+  
+                  if (frequency && self.onNoteDetected) {
+                    const note = self.getNote(frequency);
+                    self.onNoteDetected({
+                      name: self.noteStrings[note % 12],
+                      value: note,
+                      cents: self.getCents(frequency, note),
+                      octave: Math.floor(note / 12) - 1,
+                      frequency: frequency
+                    });
+                  }
+                }, function (error) {
+                  console.error('Error decoding corrected audio:', error);
+                });
+              };
+              reader.readAsArrayBuffer(correctedAudioBlob);
+            }).catch(err => {
+              console.error("Error comunicando con PARCnet:", err);
+            });
+          };
+        }
       })
       .catch(function (error) {
         alert(error.name + ': ' + error.message);
       });
-  };  
+  };
+    
   
   
 Tuner.prototype.init = function() {
