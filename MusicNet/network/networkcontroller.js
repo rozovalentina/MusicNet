@@ -6,7 +6,7 @@ function sendToParcnet(fileInput) {
   const formData = new FormData();
   formData.append('file', fileInput);
 
-  return fetch(${RENDER_SERVICE_URL}/parcnet2, {
+  return fetch(`${RENDER_SERVICE_URL}/parcnet2`, {
     method: "POST",
     body: formData
   })
@@ -27,7 +27,7 @@ async function sendToParcnetIfNeeded(wavBlob) {
   formData.append('file', wavBlob);
 
   try {
-    const lossResponse = await fetch(${RENDER_SERVICE_URL}/detect_loss, {
+    const lossResponse = await fetch(`${RENDER_SERVICE_URL}/detect_loss`, {
       method: "POST",
       body: formData
     });

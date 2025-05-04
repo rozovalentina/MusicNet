@@ -124,7 +124,7 @@ var currentNoteReference;
 
 //Pitch detector initialization (here to create only one object even if the game is restarted)
 const pitchDetector = new PitchDetector();
-pitchDetector.start();
+//pitchDetector.start();
 
 
 //Game context
@@ -581,6 +581,11 @@ var settingsScene = {
 
 		this.input.keyboard.on('keydown', function (event) {
 			if (event.key == " " || event.key == "Enter") {
+				if (!window.pitchDetector) {
+					window.pitchDetector = new PitchDetector();
+					window.pitchDetector.start();
+					window.pitchDetector.toggleEnable(); // Habilita detección
+				}
 				game.anims.anims.clear() //Remove player animations before restarting the game
 				game.textures.remove("grid-texture"); //Remove canvas texture before restarting the game
 				game.scene.start("playScene");
@@ -2082,6 +2087,14 @@ function getScaleNotes() {
             });
         });
     }
+
+	const tonicOctave = baseOctave + 1;
+    notes.push({
+        name: noteLetter,
+        octave: tonicOctave,
+        fullName: noteLetter + tonicOctave,
+        isSharp: noteLetter.includes('#')
+    });
     
     return notes;
 }
@@ -2117,7 +2130,7 @@ for (let i = 0; i < numberOfInitialMeasures; i++) {
         scaleTitle.setDepth(0);
         
         // Añadir notas de la escala
-        scaleNotes.forEach((note, index) => {
+        scaleNotes.slice().reverse().forEach((note, index) => {
 			const yPos = pianoStartY + (keyHeight * index );
             // Crear fondo de la tecla
             const keyBg = this.add.rectangle(
@@ -2908,7 +2921,7 @@ function manageStatus() {
 	switch (gameStatus) {
 
 		case "Started": //The game should start running
-			pitchDetector.resumeAudioContext()	//to enable the AudioContext of PitchDetector
+			//pitchDetector.resumeAudioContext()	//to enable the AudioContext of PitchDetector
 			pitchDetector.start(); //Restart the pitch detector after resuming the AudioContext
 			game.scene.resume("playSceneMultiplayer"); //Starting scene (update() function starts looping)
 			//playPauseButton.setTexture('pause');
