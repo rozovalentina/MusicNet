@@ -8,7 +8,7 @@ var numberOfLevels = 8;
 var backgroundGridColor = 0xA98467;
 var backgroundColor = 0xF0EAD2;
 var platformColor = 0xA98467;
-var gridColor = "221,229,182, "; // Verde (RGB: 0, 128, 0)
+var gridColor = "221,229,182,"; // Verde (RGB: 0, 128, 0)
 var gridOpacity = 0.4;
 var fontSize = 20;
 var fontColor = '#A98467';
@@ -233,6 +233,9 @@ playScene: manage the starting state (with variable gameStatus) and the differen
 var splashScene = {
 	preload: function () {
 		this.load.spritesheet('player', 'assets/player.png', { frameWidth: 19, frameHeight: 48 });
+		this.load.image('note1', 'assets/note1.png', { frameWidth: 25, frameHeight: 54 });
+		this.load.image('note2', 'assets/note2.png', { frameWidth: 25, frameHeight: 54 });
+		this.load.image('note3', 'assets/note3.png', { frameWidth: 25, frameHeight: 54 });
 	},
 	create: function () {
 
@@ -243,59 +246,74 @@ var splashScene = {
 
 		initVariables();
 
-		this.cameras.main.setBackgroundColor('#F0EAD2');
+		this.cameras.main.setBackgroundColor('#FFFFE0'); // fondo estilo mockup
 		this.cameras.main.fadeIn(500, 255, 255, 255);
 
 		settingsOffset = 0;
 
-		//Animation to the left
-		settingsPlayer = this.physics.add.sprite(resolution[0] / 2 - 400, resolution[1] / 2 - 100, 'player').setScale(resolution[1] / 636);
-		settingsPlayer.setCollideWorldBounds(false); //So the player can exceed the world boundaries
-		settingsPlayer.body.setGravityY(playerGravity);
-		settingsPlayer.setBounce(1);
+		// 🎵 Notas flotantes animadas
+		this.notesGroup = this.add.group();
+		let noteKeys = ['note1', 'note2', 'note3', 'player'];
 
-		createPlatformTexture(this, measurePlatformWidth * 1 / 4, platformHeight, 1 / 4);
-		settingsPlatforms = this.physics.add.staticGroup();
-		settingsPlatforms.create(resolution[0] / 2 - 400, resolution[1] / 2 + 100, 'platform' + 1 / 4 + platformHeight);
+		for (let i = 0; i < 12; i++) {
+			let key = Phaser.Utils.Array.GetRandom(noteKeys);
+			let note = this.add.image(
+				Phaser.Math.Between(0, resolution[0]),
+				Phaser.Math.Between(0, resolution[1]),
+				key
+			).setAlpha(0.15).setScale(Phaser.Math.FloatBetween(0.3, 0.6));
+			this.notesGroup.add(note);
 
-		settingsCollider = this.physics.add.collider(settingsPlayer, settingsPlatforms);
+			this.tweens.add({
+				targets: note,
+				y: note.y - Phaser.Math.Between(20, 40),
+				duration: Phaser.Math.Between(3000, 5000),
+				yoyo: true,
+				repeat: -1,
+				ease: 'Sine.easeInOut',
+				delay: Phaser.Math.Between(0, 1000)
+			});
+		}
 
-		//Animation to the right
-		createPlatformTexture(this, measurePlatformWidth * 1 / 4, platformHeight, 1 / 4);
-		settingsPlatforms2 = this.physics.add.staticGroup();
-		settingsPlatforms2.create(resolution[0] / 2 + 400, resolution[1] / 2 + 100, 'platform' + 1 / 4 + platformHeight);
+		// Título principal
+		this.add.text(resolution[0] / 2, resolution[1] / 4, "MusicNet", {
+			fontFamily: "Arial",
+			fontSize: "60px",
+			fontStyle: "bold",
+			color: "#A98467", // Un color vibrante
+			align: "center",
+			stroke: "#000000", // Sombra para resaltar
+			strokeThickness: 2
+		}).setOrigin(0.5);
 
-		settingsPlayer2 = this.physics.add.sprite(resolution[0] / 2 + 400, resolution[1] / 2 - 100, 'player').setScale(resolution[1] / 636);
-		settingsPlayer2.setCollideWorldBounds(false); //So the player can exceed the world boundaries
-		settingsPlayer2.body.setGravityY(playerGravity - 500);
-		settingsPlayer2.setBounce(1);
 
-		settingsCollider2 = this.physics.add.collider(settingsPlayer2, settingsPlatforms2);
-
-		this.add.text(resolution[0] / 2, resolution[1] / 4, "MusicNet",
-			{ font: "bold 48px Arial", fill: "#A98467", align: "center" })
-			.setOrigin(0.5);
-
+		// Botón Singleplayer con ícono 🎧
 		createButton(this, resolution[0] / 2 - 150, resolution[1] / 2,
-			"Single Player", 0xA98467, 0xF0EAD2, 180, 50, 26, function () {
+			"Singleplayer", 0x1E3A8A, 0xF0EAD2, 200, 70, 26, function () {
 				game.scene.stop("splashScene");
 				game.scene.start("settingsScene");
-			});
+			}, "🎧");
 
+		// Botón Multiplayer con ícono 🌐
 		createButton(this, resolution[0] / 2 + 150, resolution[1] / 2,
-			"Multiplayer", 0xADC178, 0xF0EAD2, 180, 50, 26, function () {
+			"Multiplayer", 0x6B21A8, 0xF0EAD2, 200, 70, 26, function () {
 				game.scene.stop("splashScene");
 				game.scene.start("multiplayerScene");
-			});
+			}, "🌐");
 	}
-}
+};
+
 game.scene.add("splashScene", splashScene);
+
 
 var askForStartGame;
 
 var settingsScene = {
 	preload: function () {
 		this.load.spritesheet('player', 'assets/player.png', { frameWidth: 19, frameHeight: 48 });
+		this.load.image('note1', 'assets/note1.png', { frameWidth: 25, frameHeight: 54 });
+		this.load.image('note2', 'assets/note2.png', { frameWidth: 25, frameHeight: 54 });
+		this.load.image('note3', 'assets/note3.png', { frameWidth: 25, frameHeight: 54 });
 	},
 	create: function () {
 
@@ -306,34 +324,36 @@ var settingsScene = {
 
 		initVariables();
 
-		this.cameras.main.setBackgroundColor('#F0EAD2');
+		this.cameras.main.setBackgroundColor('#FFFFE0');
 		this.cameras.main.fadeIn(500, 255, 255, 255);
 
 		settingsOffset = 0;
 
-		//Animation to the left
-		settingsPlayer = this.physics.add.sprite(resolution[0] / 2 - 400, resolution[1] / 2 - 100, 'player').setScale(resolution[1] / 636);
-		settingsPlayer.setCollideWorldBounds(false); //So the player can exceed the world boundaries
-		settingsPlayer.body.setGravityY(playerGravity);
-		settingsPlayer.setBounce(1);
+		// 🎵 Notas flotantes animadas
+		this.notesGroup = this.add.group();
+		let noteKeys = ['note1', 'note2', 'note3', 'player'];
 
-		createPlatformTexture(this, measurePlatformWidth * 1 / 4, platformHeight, 1 / 4);
-		settingsPlatforms = this.physics.add.staticGroup();
-		settingsPlatforms.create(resolution[0] / 2 - 400, resolution[1] / 2 + 100, 'platform' + 1 / 4 + platformHeight);
+		for (let i = 0; i < 12; i++) {
+			let key = Phaser.Utils.Array.GetRandom(noteKeys);
+			let note = this.add.image(
+				Phaser.Math.Between(0, resolution[0]),
+				Phaser.Math.Between(0, resolution[1]),
+				key
+			).setAlpha(0.15).setScale(Phaser.Math.FloatBetween(0.3, 0.6));
+			this.notesGroup.add(note);
 
-		settingsCollider = this.physics.add.collider(settingsPlayer, settingsPlatforms);
+			this.tweens.add({
+				targets: note,
+				y: note.y - Phaser.Math.Between(20, 40),
+				duration: Phaser.Math.Between(3000, 5000),
+				yoyo: true,
+				repeat: -1,
+				ease: 'Sine.easeInOut',
+				delay: Phaser.Math.Between(0, 1000)
+			});
+		}
 
-		//Animation to the right
-		createPlatformTexture(this, measurePlatformWidth * 1 / 4, platformHeight, 1 / 4);
-		settingsPlatforms2 = this.physics.add.staticGroup();
-		settingsPlatforms2.create(resolution[0] / 2 + 400, resolution[1] / 2 + 100, 'platform' + 1 / 4 + platformHeight);
-
-		settingsPlayer2 = this.physics.add.sprite(resolution[0] / 2 + 400, resolution[1] / 2 - 100, 'player').setScale(resolution[1] / 636);
-		settingsPlayer2.setCollideWorldBounds(false); //So the player can exceed the world boundaries
-		settingsPlayer2.body.setGravityY(playerGravity - 500);
-		settingsPlayer2.setBounce(1);
-
-		settingsCollider2 = this.physics.add.collider(settingsPlayer2, settingsPlatforms2);
+		settingsOffset = 0;
 
 		//Relative scale settings
 		//------------------------------------------------------------------------------------------------------
@@ -342,7 +362,7 @@ var settingsScene = {
 		firstNoteTextDesc.setAlign('center');
 		firstNoteText = this.add.text(resolution[0] / 2 + settingsOffset - 100, resolution[1] / 3.6, "", { font: "bold 22px Arial", fill: "#A98467" }).setOrigin(0.5);
 		firstNoteText.setText(firstNote);
-		firstNoteText.setBackgroundColor("rgba(240,234,210)"); //Color caja c3
+		firstNoteText.setBackgroundColor("#FFFFE0"); //Color caja c3
 		firstNoteText.setPadding(13, 13, 13, 13);
 		firstNoteText.setInteractive();
 		firstNoteText.on('pointerdown', function () {
@@ -567,7 +587,7 @@ var settingsScene = {
 
 		//Start Game button
 		//------------------------------------------------------------------------------------------------------
-		startGame = this.add.text(resolution[0] / 2 + settingsOffset, resolution[1] / 1.2, "Start Game", { font: "bold 80px Arial", fill: "#F00" }).setOrigin(0.5);
+		startGame = this.add.text(resolution[0] / 2 + settingsOffset, resolution[1] / 1.2, "Start Game", { font: "bold 80px Arial", fill: "#6B21A8" }).setOrigin(0.5);
 		startGame.setPadding(15, 15, 15, 15);
 		startGame.setShadow(2, 2, 'rgba(0,0,0,0.5)', 2);
 		startGame.setInteractive();
@@ -594,19 +614,7 @@ var settingsScene = {
 		});
 	},
 	update: function () {
-		if (askForStartGame == true && settingsPlayer.body.touching.down) {
-			settingsPlayer.setVelocityX(-600);
-		}
-		else if (askForStartGame == true && settingsPlayer2.body.touching.down) {
-			settingsPlayer2.setVelocityX(600);
-		}
-
-		if (settingsPlayer.x <= 0) {
-			game.anims.anims.clear() //Remove player animations before restarting the game
-			//game.textures.remove("grid-texture"); //Remove canvas texture before restarting the game
-			game.scene.start("playScene");
-			game.scene.stop("settingsScene");
-		} else if (settingsPlayer2.x >= resolution[0]) {
+		if (askForStartGame == true) {
 			game.anims.anims.clear() //Remove player animations before restarting the game
 			//game.textures.remove("grid-texture"); //Remove canvas texture before restarting the game
 			game.scene.start("playScene");
@@ -629,37 +637,123 @@ function generateRoomCode() {
 	return roomCode;
 }
 
-function createButton(scene, x, y, text, bgColor, textColor, width = 180, height = 50, fontSize = 26, callback) {
+function createButton(scene, x, y, text, bgColor, textColor, width = 300, height = 70, fontSize = 26, callback, icon = null) {
+	let buttonContainer = scene.add.container(x, y);
+
 	let buttonGraphics = scene.add.graphics();
 	buttonGraphics.fillStyle(bgColor, 1);
-	buttonGraphics.fillRoundedRect(-width / 2, -height / 2, width, height, 10);
+	buttonGraphics.fillRoundedRect(-width / 2, -height / 2, width, height, 20);
+	buttonGraphics.lineStyle(2, 0xffffff, 0.2);
+	buttonGraphics.strokeRoundedRect(-width / 2, -height / 2, width, height, 20);
 
-	let buttonContainer = scene.add.container(x, y);
 	buttonContainer.add(buttonGraphics);
 
-	let buttonText = scene.add.text(0, 0, text, {
+	let offsetX = 0;
+	let iconText;
+
+	if (icon) {
+		iconText = scene.add.text(-width / 2 + 30, 0, icon, {
+			font: `${fontSize}px Arial`,
+			fill: Phaser.Display.Color.RGBToString(
+				textColor >> 16,
+				(textColor >> 8) & 0xff,
+				textColor & 0xff
+			),
+		}).setOrigin(0.5, 0.5);
+		buttonContainer.add(iconText);
+		offsetX = 5; // espacio entre icono y texto
+	}
+
+	let buttonText = scene.add.text(icon ? -width / 2 + 60 : 0, 0, text, {
 		font: `bold ${fontSize}px Arial`,
 		fill: Phaser.Display.Color.RGBToString(
 			textColor >> 16,
 			(textColor >> 8) & 0xff,
 			textColor & 0xff
-		)
-	}).setOrigin(0.5);
+		),
+		align: "center"
+	});
+
+	// Centrado si no hay icono
+	if (!icon) {
+		buttonText.setOrigin(0.5);
+	} else {
+		buttonText.setOrigin(0, 0.5);
+	}
+
 	buttonContainer.add(buttonText);
 
 	buttonContainer.setSize(width, height);
-	buttonContainer.setInteractive().on('pointerdown', callback);
+	buttonContainer.setInteractive({ useHandCursor: true });
+
+	// Hover effect
+	buttonContainer.on('pointerover', () => {
+		buttonGraphics.clear();
+		buttonGraphics.fillStyle(Phaser.Display.Color.GetColor(
+			Math.min((bgColor >> 16) + 30, 255),
+			Math.min(((bgColor >> 8) & 0xff) + 30, 255),
+			Math.min((bgColor & 0xff) + 30, 255)
+		), 1);
+		buttonGraphics.fillRoundedRect(-width / 2, -height / 2, width, height, 20);
+	});
+	buttonContainer.on('pointerout', () => {
+		buttonGraphics.clear();
+		buttonGraphics.fillStyle(bgColor, 1);
+		buttonGraphics.fillRoundedRect(-width / 2, -height / 2, width, height, 20);
+	});
+
+	buttonContainer.on('pointerdown', callback);
 
 	return buttonContainer;
 }
+
 var multiplayerScene = {
 	preload: function () {
-		this.cameras.main.setBackgroundColor("#F0EAD2");
+		this.load.spritesheet('player', 'assets/player.png', { frameWidth: 19, frameHeight: 48 });
+		this.load.image('note1', 'assets/note1.png', { frameWidth: 25, frameHeight: 54 });
+		this.load.image('note2', 'assets/note2.png', { frameWidth: 25, frameHeight: 54 });
+		this.load.image('note3', 'assets/note3.png', { frameWidth: 25, frameHeight: 54 });
 	},
 	create: function () {
-		this.add.text(resolution[0] / 2, resolution[1] / 4, "MusicNet",
-			{ font: "bold 48px Arial", fill: "#A98467", align: "center" })
-			.setOrigin(0.5);
+		this.cameras.main.setBackgroundColor('#FFFFE0'); // fondo estilo mockup
+		this.cameras.main.fadeIn(500, 255, 255, 255);
+
+		settingsOffset = 0;
+
+		// 🎵 Notas flotantes animadas
+		this.notesGroup = this.add.group();
+		let noteKeys = ['note1', 'note2', 'note3', 'player'];
+
+		for (let i = 0; i < 12; i++) {
+			let key = Phaser.Utils.Array.GetRandom(noteKeys);
+			let note = this.add.image(
+				Phaser.Math.Between(0, resolution[0]),
+				Phaser.Math.Between(0, resolution[1]),
+				key
+			).setAlpha(0.15).setScale(Phaser.Math.FloatBetween(0.3, 0.6));
+			this.notesGroup.add(note);
+
+			this.tweens.add({
+				targets: note,
+				y: note.y - Phaser.Math.Between(20, 40),
+				duration: Phaser.Math.Between(3000, 5000),
+				yoyo: true,
+				repeat: -1,
+				ease: 'Sine.easeInOut',
+				delay: Phaser.Math.Between(0, 1000)
+			});
+		}
+
+		// Título principal
+		this.add.text(resolution[0] / 2, resolution[1] / 4, "MusicNet", {
+			fontFamily: "Arial",
+			fontSize: "60px",
+			fontStyle: "bold",
+			color: "#A98467", // Un color vibrante
+			align: "center",
+			stroke: "#000000", // Sombra para resaltar
+			strokeThickness: 2
+		}).setOrigin(0.5);
 
 		createButton(this, resolution[0] / 2 - 150, resolution[1] / 2,
 			"Create Room", 0xA98467, 0xF0EAD2, 180, 50, 26, function () {
@@ -692,9 +786,41 @@ game.scene.add("multiplayerScene", multiplayerScene);
 
 var createRoomScene = {
 	preload: function () {
-		// No need to load a background image
+		this.load.spritesheet('player', 'assets/player.png', { frameWidth: 19, frameHeight: 48 });
+		this.load.image('note1', 'assets/note1.png', { frameWidth: 25, frameHeight: 54 });
+		this.load.image('note2', 'assets/note2.png', { frameWidth: 25, frameHeight: 54 });
+		this.load.image('note3', 'assets/note3.png', { frameWidth: 25, frameHeight: 54 });
 	},
 	create: function (data) {
+		this.cameras.main.setBackgroundColor('#FFFFE0'); // fondo estilo mockup
+		this.cameras.main.fadeIn(500, 255, 255, 255);
+
+		settingsOffset = 0;
+
+		// 🎵 Notas flotantes animadas
+		this.notesGroup = this.add.group();
+		let noteKeys = ['note1', 'note2', 'note3'];
+
+		for (let i = 0; i < 12; i++) {
+			let key = Phaser.Utils.Array.GetRandom(noteKeys);
+			let note = this.add.image(
+				Phaser.Math.Between(0, resolution[0]),
+				Phaser.Math.Between(0, resolution[1]),
+				key
+			).setAlpha(0.15).setScale(Phaser.Math.FloatBetween(0.3, 0.6));
+			this.notesGroup.add(note);
+
+			this.tweens.add({
+				targets: note,
+				y: note.y - Phaser.Math.Between(20, 40),
+				duration: Phaser.Math.Between(3000, 5000),
+				yoyo: true,
+				repeat: -1,
+				ease: 'Sine.easeInOut',
+				delay: Phaser.Math.Between(0, 1000)
+			});
+		}
+
 		if (!data || !data.roomCode) {
 			console.error("No room code provided");
 			game.scene.stop("createRoomScene");
@@ -758,10 +884,43 @@ game.scene.add("createRoomScene", createRoomScene);
 var joinRoomScene = {
 	roomCode: "",
 
-	preload: function () { },
+	preload: function () {
+		this.load.spritesheet('player', 'assets/player.png', { frameWidth: 19, frameHeight: 48 });
+		this.load.image('note1', 'assets/note1.png', { frameWidth: 25, frameHeight: 54 });
+		this.load.image('note2', 'assets/note2.png', { frameWidth: 25, frameHeight: 54 });
+		this.load.image('note3', 'assets/note3.png', { frameWidth: 25, frameHeight: 54 });
+	},
 
 	create: function () {
-		this.cameras.main.setBackgroundColor("#F0EAD2");
+		this.cameras.main.setBackgroundColor('#FFFFE0'); // fondo estilo mockup
+		this.cameras.main.fadeIn(500, 255, 255, 255);
+
+		settingsOffset = 0;
+
+		// 🎵 Notas flotantes animadas
+		this.notesGroup = this.add.group();
+		let noteKeys = ['note1', 'note2', 'note3'];
+
+		for (let i = 0; i < 12; i++) {
+			let key = Phaser.Utils.Array.GetRandom(noteKeys);
+			let note = this.add.image(
+				Phaser.Math.Between(0, resolution[0]),
+				Phaser.Math.Between(0, resolution[1]),
+				key
+			).setAlpha(0.15).setScale(Phaser.Math.FloatBetween(0.3, 0.6));
+			this.notesGroup.add(note);
+
+			this.tweens.add({
+				targets: note,
+				y: note.y - Phaser.Math.Between(20, 40),
+				duration: Phaser.Math.Between(3000, 5000),
+				yoyo: true,
+				repeat: -1,
+				ease: 'Sine.easeInOut',
+				delay: Phaser.Math.Between(0, 1000)
+			});
+		}
+
 
 		createButton(this, 80, 40, "← Back", 0xADC178, 0xF0EAD2, 100, 40, 20, () => {
 			game.scene.stop("joinRoomScene");
@@ -844,6 +1003,9 @@ game.scene.add("joinRoomScene", joinRoomScene);
 var multiplayerSettingsScene = {
 	preload: function () {
 		this.load.spritesheet('player', 'assets/player.png', { frameWidth: 19, frameHeight: 48 });
+		this.load.image('note1', 'assets/note1.png', { frameWidth: 25, frameHeight: 54 });
+		this.load.image('note2', 'assets/note2.png', { frameWidth: 25, frameHeight: 54 });
+		this.load.image('note3', 'assets/note3.png', { frameWidth: 25, frameHeight: 54 });
 	},
 	create: function (data) {
 		console.log("🔄 Cargando escena multiplayerSettingsScene...");
@@ -861,10 +1023,35 @@ var multiplayerSettingsScene = {
 		playerWidth = 19;
 		playerHeight = 48;
 		initVariables();
-
-		this.cameras.main.setBackgroundColor('#F0EAD2');
+		this.cameras.main.setBackgroundColor('#FFFFE0'); // fondo estilo mockup
 		this.cameras.main.fadeIn(500, 255, 255, 255);
+
 		settingsOffset = 0;
+
+		// 🎵 Notas flotantes animadas
+		this.notesGroup = this.add.group();
+		let noteKeys = ['note1', 'note2', 'note3'];
+
+		for (let i = 0; i < 12; i++) {
+			let key = Phaser.Utils.Array.GetRandom(noteKeys);
+			let note = this.add.image(
+				Phaser.Math.Between(0, resolution[0]),
+				Phaser.Math.Between(0, resolution[1]),
+				key
+			).setAlpha(0.15).setScale(Phaser.Math.FloatBetween(0.3, 0.6));
+			this.notesGroup.add(note);
+
+			this.tweens.add({
+				targets: note,
+				y: note.y - Phaser.Math.Between(20, 40),
+				duration: Phaser.Math.Between(3000, 5000),
+				yoyo: true,
+				repeat: -1,
+				ease: 'Sine.easeInOut',
+				delay: Phaser.Math.Between(0, 1000)
+			});
+		}
+
 		function broadcastSettings() {
 			if (!multiplayerSettingsScene.isHost) return;
 
@@ -900,28 +1087,6 @@ var multiplayerSettingsScene = {
 				}
 			});
 		}
-		// Animation to the left
-		settingsPlayer = this.physics.add.sprite(resolution[0] / 2 - 400, resolution[1] / 2 - 100, 'player').setScale(resolution[1] / 636);
-		settingsPlayer.setCollideWorldBounds(false);
-		settingsPlayer.body.setGravityY(playerGravity);
-		settingsPlayer.setBounce(1);
-
-		createPlatformTexture(this, measurePlatformWidth * 1 / 4, platformHeight, 1 / 4);
-		settingsPlatforms = this.physics.add.staticGroup();
-		settingsPlatforms.create(resolution[0] / 2 - 400, resolution[1] / 2 + 100, 'platform' + 1 / 4 + platformHeight);
-		settingsCollider = this.physics.add.collider(settingsPlayer, settingsPlatforms);
-
-		// Animation to the right
-		createPlatformTexture(this, measurePlatformWidth * 1 / 4, platformHeight, 1 / 4);
-		settingsPlatforms2 = this.physics.add.staticGroup();
-		settingsPlatforms2.create(resolution[0] / 2 + 400, resolution[1] / 2 + 100, 'platform' + 1 / 4 + platformHeight);
-
-		settingsPlayer2 = this.physics.add.sprite(resolution[0] / 2 + 400, resolution[1] / 2 - 100, 'player').setScale(resolution[1] / 636);
-		settingsPlayer2.setCollideWorldBounds(false);
-		settingsPlayer2.body.setGravityY(playerGravity - 500);
-		settingsPlayer2.setBounce(1);
-		settingsCollider2 = this.physics.add.collider(settingsPlayer2, settingsPlatforms2);
-
 		// Room code display
 		this.add.text(resolution[0] / 2, resolution[1] / 10, "Room Code: " + this.roomCode,
 			{ font: "bold 32px Arial", fill: "#6C584C" }).setOrigin(0.5);
@@ -1214,14 +1379,7 @@ var multiplayerSettingsScene = {
 		}
 	},
 	update: function () {
-		if (askForStartGame == true && settingsPlayer.body.touching.down && this.isHost) {
-			settingsPlayer.setVelocityX(-600);
-		}
-		else if (askForStartGame == true && settingsPlayer2.body.touching.down && this.isHost) {
-			settingsPlayer2.setVelocityX(600);
-		}
-
-		if (settingsPlayer.x <= 0 || settingsPlayer2.x >= resolution[0] && this.isHost) {
+		if (askForStartGame == true && this.isHost) {
 			// Host inicia el juego
 			const settings = {
 				noteReference: firstNote,
@@ -1230,6 +1388,7 @@ var multiplayerSettingsScene = {
 			};
 			multiplayerSettingsScene.startGameForHost(settings, this);
 		}
+
 	},
 	startGameForHost: function (settings, scene) {
 		WebRTCManager.sendMessage({
@@ -1425,119 +1584,119 @@ var playSceneMultiplayer = {
 		gridLength = measurePlatformWidth;
 		numberOfInitialMeasures = resolution[0] / measurePlatformWidth;
 		// Obtener configuración de escala desde settingsScene
-const currentScale = modalScaleName; // 'ionian', 'dorian', etc.
-const baseNote = firstNote; // Ej: 'C4'
-const baseOctave = parseInt(baseNote.slice(-1));
-const noteLetter = baseNote.replace(/\d/g, ''); // Extrae solo las letras (C, C#, etc.)
+		const currentScale = modalScaleName; // 'ionian', 'dorian', etc.
+		const baseNote = firstNote; // Ej: 'C4'
+		const baseOctave = parseInt(baseNote.slice(-1));
+		const noteLetter = baseNote.replace(/\d/g, ''); // Extrae solo las letras (C, C#, etc.)
 
-// Configuración de escalas modales mejorada
-const modalScales = {
-    'ionian':     [0, 2, 4, 5, 7, 9, 11],  // Escala mayor
-    'dorian':     [0, 2, 3, 5, 7, 9, 10],
-    'phrygian':   [0, 1, 3, 5, 7, 8, 10],
-    'lydian':     [0, 2, 4, 6, 7, 9, 11],
-    'mixolydian': [0, 2, 4, 5, 7, 9, 10],
-    'aeolian':    [0, 2, 3, 5, 7, 8, 10],  // Escala menor natural
-    'locrian':    [0, 1, 3, 5, 6, 8, 10]
-};
+		// Configuración de escalas modales mejorada
+		const modalScales = {
+			'ionian': [0, 2, 4, 5, 7, 9, 11],  // Escala mayor
+			'dorian': [0, 2, 3, 5, 7, 9, 10],
+			'phrygian': [0, 1, 3, 5, 7, 8, 10],
+			'lydian': [0, 2, 4, 6, 7, 9, 11],
+			'mixolydian': [0, 2, 4, 5, 7, 9, 10],
+			'aeolian': [0, 2, 3, 5, 7, 8, 10],  // Escala menor natural
+			'locrian': [0, 1, 3, 5, 6, 8, 10]
+		};
 
-const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+		const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 
-// Función para generar las notas de la escala actual
-function getScaleNotes() {
-    const scaleIntervals = modalScales[currentScale];
-    const baseIndex = noteNames.indexOf(noteLetter);
-    let notes = [];
-    
-    // Generar 1 octavas de la escala
-    for (let oct = 0; oct < 1; oct++) {
-        scaleIntervals.forEach(interval => {
-            const noteIndex = (baseIndex + interval) % 12;
-            const currentOctave = baseOctave + oct;
-            notes.push({
-                name: noteNames[noteIndex],
-                octave: currentOctave,
-                fullName: noteNames[noteIndex] + currentOctave,
-                isSharp: noteNames[noteIndex].includes('#')
-            });
-        });
-    }
-    
-    return notes;
-}
+		// Función para generar las notas de la escala actual
+		function getScaleNotes() {
+			const scaleIntervals = modalScales[currentScale];
+			const baseIndex = noteNames.indexOf(noteLetter);
+			let notes = [];
 
-const scaleNotes = getScaleNotes();
+			// Generar 1 octavas de la escala
+			for (let oct = 0; oct < 1; oct++) {
+				scaleIntervals.forEach(interval => {
+					const noteIndex = (baseIndex + interval) % 12;
+					const currentOctave = baseOctave + oct;
+					notes.push({
+						name: noteNames[noteIndex],
+						octave: currentOctave,
+						fullName: noteNames[noteIndex] + currentOctave,
+						isSharp: noteNames[noteIndex].includes('#')
+					});
+				});
+			}
 
-// Crear el grid con referencias de piano
-for (let i = 0; i < numberOfInitialMeasures; i++) {
-    const gridX = (gameInitialX - (playerWidth / 2) + (gridLength / 2)) + (gridLength * i) - platformInitialPlayerOffset;
-    const gridY = (resolution[1] / 2) + playerHeight;
-    
-    lastGrid = measureGrids.create(gridX, gridY, 'grid-texture');
-    lastGrid.setDepth(-1);
-    lastGrid.progressiveNumber = 0;
-    
-    // Añadir referencias de piano solo en la primera columna
-    if (i === 0) {
-        const totalHeight = lastGrid.displayHeight;
-        const keyHeight = totalHeight / scaleNotes.length;
-        const pianoWidth = 60; // Ancho reducido para las teclas
-        
-        // Posición inicial (pegado al borde izquierdo del grid)
-        const pianoStartX = gridX - lastGrid.displayWidth/2;
-        const pianoStartY = gridY - lastGrid.displayHeight/2;
-        
-        // Añadir título de la escala
-        const scaleTitle = this.add.text(
-            pianoStartX + 5,
-            pianoStartY - 20,
-            `${noteLetter} ${currentScale}`,
-            { font: '14px Arial', fill: '#6C584C' }
-        );
-        scaleTitle.setDepth(0);
-        
-        // Añadir notas de la escala
-        scaleNotes.forEach((note, index) => {
-			const yPos = pianoStartY + (keyHeight * index );
-            // Crear fondo de la tecla
-            const keyBg = this.add.rectangle(
-                pianoStartX,
-                yPos,
-                pianoWidth,
-                keyHeight ,
-                note.isSharp ? 0x333333 : 0xFFFFFF
-            ).setOrigin(0,0);
-            ;
-            
-            // Crear texto de la nota
-            const noteText = this.add.text(
-               pianoStartX + pianoWidth / 2,
-				yPos + keyHeight / 2,
-                note.fullName,
-                { 
-                    font: '12px Arial', 
-                    fill: note.isSharp ? '#FFFFFF' : '#000000',
-                    align: 'center'
-                }
-            );
-            noteText.setOrigin(0.5);
-            
-            // Hacer la nota interactiva
-            noteText.setInteractive();
-            noteText.on('pointerdown', () => {
-                playNote(note.fullName, 1.0);
-                
-                // Efecto visual al tocar
-                this.tweens.add({
-                    targets: keyBg,
-                    fillColor: note.isSharp ? 0x555555 : 0xDDDDDD,
-                    duration: 100,
-                    yoyo: true
-                });
-            });
-        });
-    }
-}
+			return notes;
+		}
+
+		const scaleNotes = getScaleNotes();
+
+		// Crear el grid con referencias de piano
+		for (let i = 0; i < numberOfInitialMeasures; i++) {
+			const gridX = (gameInitialX - (playerWidth / 2) + (gridLength / 2)) + (gridLength * i) - platformInitialPlayerOffset;
+			const gridY = (resolution[1] / 2) + playerHeight;
+
+			lastGrid = measureGrids.create(gridX, gridY, 'grid-texture');
+			lastGrid.setDepth(-1);
+			lastGrid.progressiveNumber = 0;
+
+			// Añadir referencias de piano solo en la primera columna
+			if (i === 0) {
+				const totalHeight = lastGrid.displayHeight;
+				const keyHeight = totalHeight / scaleNotes.length;
+				const pianoWidth = 60; // Ancho reducido para las teclas
+
+				// Posición inicial (pegado al borde izquierdo del grid)
+				const pianoStartX = gridX - lastGrid.displayWidth / 2;
+				const pianoStartY = gridY - lastGrid.displayHeight / 2;
+
+				// Añadir título de la escala
+				const scaleTitle = this.add.text(
+					pianoStartX + 5,
+					pianoStartY - 20,
+					`${noteLetter} ${currentScale}`,
+					{ font: '14px Arial', fill: '#6C584C' }
+				);
+				scaleTitle.setDepth(0);
+
+				// Añadir notas de la escala
+				scaleNotes.forEach((note, index) => {
+					const yPos = pianoStartY + (keyHeight * index);
+					// Crear fondo de la tecla
+					const keyBg = this.add.rectangle(
+						pianoStartX,
+						yPos,
+						pianoWidth,
+						keyHeight,
+						note.isSharp ? 0x333333 : 0xFFFFFF
+					).setOrigin(0, 0);
+					;
+
+					// Crear texto de la nota
+					const noteText = this.add.text(
+						pianoStartX + pianoWidth / 2,
+						yPos + keyHeight / 2,
+						note.fullName,
+						{
+							font: '12px Arial',
+							fill: note.isSharp ? '#FFFFFF' : '#000000',
+							align: 'center'
+						}
+					);
+					noteText.setOrigin(0.5);
+
+					// Hacer la nota interactiva
+					noteText.setInteractive();
+					noteText.on('pointerdown', () => {
+						playNote(note.fullName, 1.0);
+
+						// Efecto visual al tocar
+						this.tweens.add({
+							targets: keyBg,
+							fillColor: note.isSharp ? 0x555555 : 0xDDDDDD,
+							duration: 100,
+							yoyo: true
+						});
+					});
+				});
+			}
+		}
 
 		//Creation of collider between the player and the platforms, with a callback function
 		collider = this.physics.add.collider(player, platforms, platformsColliderCallback);
@@ -2049,128 +2208,128 @@ var playScene = {
 		gridLength = measurePlatformWidth;
 		numberOfInitialMeasures = resolution[0] / measurePlatformWidth;
 
-// Obtener configuración de escala desde settingsScene
-const currentScale = modalScaleName; // 'ionian', 'dorian', etc.
-const baseNote = firstNote; // Ej: 'C4'
-const baseOctave = parseInt(baseNote.slice(-1));
-const noteLetter = baseNote.replace(/\d/g, ''); // Extrae solo las letras (C, C#, etc.)
+		// Obtener configuración de escala desde settingsScene
+		const currentScale = modalScaleName; // 'ionian', 'dorian', etc.
+		const baseNote = firstNote; // Ej: 'C4'
+		const baseOctave = parseInt(baseNote.slice(-1));
+		const noteLetter = baseNote.replace(/\d/g, ''); // Extrae solo las letras (C, C#, etc.)
 
-// Configuración de escalas modales mejorada
-const modalScales = {
-    'ionian':     [0, 2, 4, 5, 7, 9, 11],  // Escala mayor
-    'dorian':     [0, 2, 3, 5, 7, 9, 10],
-    'phrygian':   [0, 1, 3, 5, 7, 8, 10],
-    'lydian':     [0, 2, 4, 6, 7, 9, 11],
-    'mixolydian': [0, 2, 4, 5, 7, 9, 10],
-    'aeolian':    [0, 2, 3, 5, 7, 8, 10],  // Escala menor natural
-    'locrian':    [0, 1, 3, 5, 6, 8, 10]
-};
+		// Configuración de escalas modales mejorada
+		const modalScales = {
+			'ionian': [0, 2, 4, 5, 7, 9, 11],  // Escala mayor
+			'dorian': [0, 2, 3, 5, 7, 9, 10],
+			'phrygian': [0, 1, 3, 5, 7, 8, 10],
+			'lydian': [0, 2, 4, 6, 7, 9, 11],
+			'mixolydian': [0, 2, 4, 5, 7, 9, 10],
+			'aeolian': [0, 2, 3, 5, 7, 8, 10],  // Escala menor natural
+			'locrian': [0, 1, 3, 5, 6, 8, 10]
+		};
 
-const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+		const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 
-// Función para generar las notas de la escala actual
-function getScaleNotes() {
-    const scaleIntervals = modalScales[currentScale];
-    const baseIndex = noteNames.indexOf(noteLetter);
-    let notes = [];
-    
-    // Generar 1 octavas de la escala
-    for (let oct = 0; oct < 1; oct++) {
-        scaleIntervals.forEach(interval => {
-            const noteIndex = (baseIndex + interval) % 12;
-            const currentOctave = baseOctave + oct;
-            notes.push({
-                name: noteNames[noteIndex],
-                octave: currentOctave,
-                fullName: noteNames[noteIndex] + currentOctave,
-                isSharp: noteNames[noteIndex].includes('#')
-            });
-        });
-    }
+		// Función para generar las notas de la escala actual
+		function getScaleNotes() {
+			const scaleIntervals = modalScales[currentScale];
+			const baseIndex = noteNames.indexOf(noteLetter);
+			let notes = [];
 
-	const tonicOctave = baseOctave + 1;
-    notes.push({
-        name: noteLetter,
-        octave: tonicOctave,
-        fullName: noteLetter + tonicOctave,
-        isSharp: noteLetter.includes('#')
-    });
-    
-    return notes;
-}
+			// Generar 1 octavas de la escala
+			for (let oct = 0; oct < 1; oct++) {
+				scaleIntervals.forEach(interval => {
+					const noteIndex = (baseIndex + interval) % 12;
+					const currentOctave = baseOctave + oct;
+					notes.push({
+						name: noteNames[noteIndex],
+						octave: currentOctave,
+						fullName: noteNames[noteIndex] + currentOctave,
+						isSharp: noteNames[noteIndex].includes('#')
+					});
+				});
+			}
 
-const scaleNotes = getScaleNotes();
+			const tonicOctave = baseOctave + 1;
+			notes.push({
+				name: noteLetter,
+				octave: tonicOctave,
+				fullName: noteLetter + tonicOctave,
+				isSharp: noteLetter.includes('#')
+			});
 
-// Crear el grid con referencias de piano
-for (let i = 0; i < numberOfInitialMeasures; i++) {
-    const gridX = (gameInitialX - (playerWidth / 2) + (gridLength / 2)) + (gridLength * i) - platformInitialPlayerOffset;
-    const gridY = (resolution[1] / 2) + playerHeight;
-    
-    lastGrid = measureGrids.create(gridX, gridY, 'grid-texture');
-    lastGrid.setDepth(-1);
-    lastGrid.progressiveNumber = 0;
-    
-    // Añadir referencias de piano solo en la primera columna
-    if (i === 0) {
-        const totalHeight = lastGrid.displayHeight;
-        const keyHeight = totalHeight / scaleNotes.length;
-        const pianoWidth = 60; // Ancho reducido para las teclas
-        
-        // Posición inicial (pegado al borde izquierdo del grid)
-        const pianoStartX = gridX - lastGrid.displayWidth/2;
-        const pianoStartY = gridY - lastGrid.displayHeight/2;
-        
-        // Añadir título de la escala
-        const scaleTitle = this.add.text(
-            pianoStartX + 5,
-            pianoStartY - 20,
-            `${noteLetter} ${currentScale}`,
-            { font: '14px Arial', fill: '#6C584C' }
-        );
-        scaleTitle.setDepth(0);
-        
-        // Añadir notas de la escala
-        scaleNotes.slice().reverse().forEach((note, index) => {
-			const yPos = pianoStartY + (keyHeight * index );
-            // Crear fondo de la tecla
-            const keyBg = this.add.rectangle(
-                pianoStartX,
-                yPos,
-                pianoWidth,
-                keyHeight ,
-                note.isSharp ? 0x333333 : 0xFFFFFF
-            ).setOrigin(0,0);
-            ;
-            
-            // Crear texto de la nota
-            const noteText = this.add.text(
-               pianoStartX + pianoWidth / 2,
-				yPos + keyHeight / 2,
-                note.fullName,
-                { 
-                    font: '12px Arial', 
-                    fill: note.isSharp ? '#FFFFFF' : '#000000',
-                    align: 'center'
-                }
-            );
-            noteText.setOrigin(0.5);
-            
-            // Hacer la nota interactiva
-            noteText.setInteractive();
-            noteText.on('pointerdown', () => {
-                playNote(note.fullName, 1.0);
-                
-                // Efecto visual al tocar
-                this.tweens.add({
-                    targets: keyBg,
-                    fillColor: note.isSharp ? 0x555555 : 0xDDDDDD,
-                    duration: 100,
-                    yoyo: true
-                });
-            });
-        });
-    }
-}
+			return notes;
+		}
+
+		const scaleNotes = getScaleNotes();
+
+		// Crear el grid con referencias de piano
+		for (let i = 0; i < numberOfInitialMeasures; i++) {
+			const gridX = (gameInitialX - (playerWidth / 2) + (gridLength / 2)) + (gridLength * i) - platformInitialPlayerOffset;
+			const gridY = (resolution[1] / 2) + playerHeight;
+
+			lastGrid = measureGrids.create(gridX, gridY, 'grid-texture');
+			lastGrid.setDepth(-1);
+			lastGrid.progressiveNumber = 0;
+
+			// Añadir referencias de piano solo en la primera columna
+			if (i === 0) {
+				const totalHeight = lastGrid.displayHeight;
+				const keyHeight = totalHeight / scaleNotes.length;
+				const pianoWidth = 60; // Ancho reducido para las teclas
+
+				// Posición inicial (pegado al borde izquierdo del grid)
+				const pianoStartX = gridX - lastGrid.displayWidth / 2;
+				const pianoStartY = gridY - lastGrid.displayHeight / 2;
+
+				// Añadir título de la escala
+				const scaleTitle = this.add.text(
+					pianoStartX + 5,
+					pianoStartY - 20,
+					`${noteLetter} ${currentScale}`,
+					{ font: '14px Arial', fill: '#6C584C' }
+				);
+				scaleTitle.setDepth(0);
+
+				// Añadir notas de la escala
+				scaleNotes.slice().reverse().forEach((note, index) => {
+					const yPos = pianoStartY + (keyHeight * index);
+					// Crear fondo de la tecla
+					const keyBg = this.add.rectangle(
+						pianoStartX,
+						yPos,
+						pianoWidth,
+						keyHeight,
+						note.isSharp ? 0x333333 : 0xFFFFFF
+					).setOrigin(0, 0);
+					;
+
+					// Crear texto de la nota
+					const noteText = this.add.text(
+						pianoStartX + pianoWidth / 2,
+						yPos + keyHeight / 2,
+						note.fullName,
+						{
+							font: '12px Arial',
+							fill: note.isSharp ? '#FFFFFF' : '#000000',
+							align: 'center'
+						}
+					);
+					noteText.setOrigin(0.5);
+
+					// Hacer la nota interactiva
+					noteText.setInteractive();
+					noteText.on('pointerdown', () => {
+						playNote(note.fullName, 1.0);
+
+						// Efecto visual al tocar
+						this.tweens.add({
+							targets: keyBg,
+							fillColor: note.isSharp ? 0x555555 : 0xDDDDDD,
+							duration: 100,
+							yoyo: true
+						});
+					});
+				});
+			}
+		}
 
 
 		//Creation of collider between the player and the platforms, with a callback function
@@ -2234,7 +2393,7 @@ for (let i = 0; i < numberOfInitialMeasures; i++) {
 		playPauseButton = this.add.image(resolution[0] - 100, (playerHeight * 0.6), 'play').setScale(0.8);
 		playPauseButton.setInteractive();
 		playPauseButton.on('pointerdown', function () {
-			manageStatus();
+			manageStatusSingle();
 		});
 
 		//Settings button
@@ -2242,8 +2401,8 @@ for (let i = 0; i < numberOfInitialMeasures; i++) {
 		settingsButton.setInteractive();
 		settingsButton.on('pointerdown', function () {
 			game.scene.stop("playScene");
-			game.scene.stop("gamoverScene");
-			game.scene.stop("pauseScene");
+			game.scene.stop("gamoverSceneSingle");
+			game.scene.stop("pauseSceneSingle");
 			game.scene.start("settingsScene");
 		});
 
@@ -2558,7 +2717,7 @@ for (let i = 0; i < numberOfInitialMeasures; i++) {
 			//------------------------------------------------------------------------------------------------------
 			if (player.y > resolution[1] + player.height / 2) { //When the player is below the screen resolution (no more visible), go to gameoverScene
 				game.scene.pause("playScene");
-				game.scene.start("gameoverScene");
+				game.scene.start("gameoverSceneSingle");
 			}
 
 			//GO TO DEATH MANAGER
@@ -2597,14 +2756,6 @@ var pauseScene = {
 		statusText.setText('Game Paused\nEnter/Space to resume...');
 		tween = this.add.tween({ targets: statusText, ease: 'Sine.easeInOut', duration: 300, delay: 0, alpha: { getStart: () => 0, getEnd: () => 1 } });
 
-		//Play Pause Button
-		/*playPauseButton.destroy();
-		playPauseButton = this.add.image(resolution[0] - 100, (playerHeight * 0.6), 'play').setScale(0.8);
-		playPauseButton.setInteractive();
-		playPauseButton.on('pointerdown', function () {
-			manageStatus();
-		});*/
-
 		//Settings button
 		settingsButton = this.add.image(resolution[0] - (playerHeight * resolution[1] / 636) / 2 - 10, (playerHeight * 0.6), 'settings').setScale(0.6);
 		settingsButton.setInteractive();
@@ -2612,7 +2763,7 @@ var pauseScene = {
 			game.scene.stop("playSceneMultiplayer");
 			game.scene.stop("gamoverScene");
 			game.scene.stop("pauseScene");
-			game.scene.start("settingsScene");
+			game.scene.start("MultiPlayerSettingsScene");
 		});
 	}
 }
@@ -2629,7 +2780,7 @@ var gameoverScene = {
 		player.destroy(); //Destroy the player
 
 
-		gameoverText = this.add.text(resolution[0] / 2, resolution[1] / 2, 'Game Over! \nEnter/Space to restart', { font: "bold 70px Arial", fill: fontColor }).setOrigin(0.5);
+		gameoverText = this.add.text(resolution[0] / 2, resolution[1] / 2, 'Game Over!', { font: "bold 70px Arial", fill: fontColor }).setOrigin(0.5);
 		gameoverText.setShadow(5, 5, 'rgba(250, 249, 243, 0.5)', 5);
 		gameoverText.setAlign('center');
 
@@ -2679,17 +2830,6 @@ var gameoverScene = {
 			buttonPlayReference();
 		});
 
-		//Restart button
-		//playPauseButton.destroy();
-		//playPauseButton = gameoverContext.add.image(resolution[0] - 100, (playerHeight * 0.6), 'restart').setScale(0.6);
-		//playPauseButton.setInteractive();
-		/*playPauseButton.on('pointerdown', function () {
-			game.anims.anims.clear() //Remove player animations before restarting the game
-			game.textures.remove("grid-texture"); //Remove canvas texture before restarting the game
-			game.scene.start("playSceneMultiplayer");
-			game.scene.stop("gameoverScene");
-		});*/
-
 		//Settings button
 		settingsButton = gameoverContext.add.image(resolution[0] - (playerHeight * resolution[1] / 636) / 2 - 10, (playerHeight * 0.6), 'settings').setScale(0.6);
 		settingsButton.setInteractive();
@@ -2697,11 +2837,138 @@ var gameoverScene = {
 			game.scene.stop("playSceneMultiplayer");
 			game.scene.stop("gameoverScene");
 			game.scene.stop("pauseScene");
-			game.scene.start("settingsScene");
+			game.scene.start("MultiPlayerSettingsScene");
 		});
 	}
 }
 game.scene.add("gameoverScene", gameoverScene);
+
+var pauseSceneSingle = {
+	create: function () {
+		//Change Reference Button
+		referenceNoteButton.destroy();
+		referenceNoteButton = this.add.text(resolution[0], playerHeight * 2.2, 'Play Reference', { fontSize: fontSize + 'px', fill: fontColor, fontFamily: "Arial" });
+		referenceNoteButton.setBackgroundColor("#F0EAD2");
+		referenceNoteButton.setPadding(8, 8, 8, 8);
+		referenceNoteButton.setX(resolution[0] - referenceNoteButton.width - 10);
+		referenceNoteButton.setY(referenceNoteButton.y - 10);
+		referenceNoteButton.setInteractive();
+		referenceNoteButton.on('pointerdown', () => {
+			buttonPlayReference();
+		});
+
+		//Set Status Text
+		statusTextSmall.setText("");
+		statusText.setAlpha(0);
+		statusText.setY(playerHeight * 3 / 2);
+		statusText.setText('Game Paused\nEnter/Space to resume...');
+		tween = this.add.tween({ targets: statusText, ease: 'Sine.easeInOut', duration: 300, delay: 0, alpha: { getStart: () => 0, getEnd: () => 1 } });
+
+		//Play Pause Button
+		playPauseButton.destroy();
+		playPauseButton = this.add.image(resolution[0] - 100, (playerHeight * 0.6), 'play').setScale(0.8);
+		playPauseButton.setInteractive();
+		playPauseButton.on('pointerdown', function () {
+			manageStatusSingle();
+		});
+
+		//Settings button
+		settingsButton = this.add.image(resolution[0] - (playerHeight * resolution[1] / 636) / 2 - 10, (playerHeight * 0.6), 'settings').setScale(0.6);
+		settingsButton.setInteractive();
+		settingsButton.on('pointerdown', function () {
+			game.scene.stop("playScene");
+			game.scene.stop("gamoverSceneSingle");
+			game.scene.stop("pauseSceneSingle");
+			game.scene.start("settingsScene");
+		});
+	}
+}
+game.scene.add("pauseSceneSingle", pauseSceneSingle);
+
+var gameoverSceneSingle = {
+	preload: function () {
+		this.load.image('restart', 'assets/restart.png');
+	},
+	create: function () {
+		gameoverContext = this;
+
+		gameStatus = "Gameover"; //in order to avoid checks made when the gamestatus is running
+		player.destroy(); //Destroy the player
+
+
+		gameoverText = this.add.text(resolution[0] / 2, resolution[1] / 2, 'Game Over!', { font: "bold 70px Arial", fill: fontColor }).setOrigin(0.5);
+		gameoverText.setShadow(5, 5, 'rgba(250, 249, 243, 0.5)', 5);
+		gameoverText.setAlign('center');
+
+		gameoverText.setAlpha(0);
+		statusText.setAlpha(0);
+
+		gameOverTween = gameoverContext.add.tween({ targets: gameoverText, ease: 'Sine.easeInOut', duration: 100, delay: 0, alpha: { getStart: () => 0, getEnd: () => 1 } });
+
+		if (fallBeforePause) {
+			statusText.setText('You should have played nothing!'); //Update the status text
+		}
+		else if (levelsQueue[0] != 0) {
+			statusText.setText('You should have played 🔊'); //Update the status text
+			playNote(convertLevelToNote(levelsQueue[0]), 1.5) //right note after another note
+		}
+		else {
+			statusText.setText('You should have played 🔊'); //Update the status text
+			playNote(convertLevelToNote(levelsQueue[1]), 1.5) //right note after a pause
+		}
+
+		statusTextTween = this.add.tween({ targets: statusText, ease: 'Sine.easeInOut', duration: 300, delay: 0, alpha: { getStart: () => 0, getEnd: () => 1 } });
+		if (!game.scene.isActive("playScene"))
+			statusTextTween = this.add.tween({ targets: statusText, ease: 'Sine.easeInOut', duration: 300, delay: 1000, alpha: { getStart: () => 1, getEnd: () => 0 } });
+
+
+		if (pitchDetector.isEnable())
+			pitchDetector.toggleEnable(); //If the pitch detector is enabled, disable it
+
+		this.input.keyboard.on('keydown', function (e) {
+			if (e.key == " " || e.key == "Enter") {
+				game.anims.anims.clear() //Remove player animations before restarting the game
+				game.textures.remove("grid-texture"); //Remove canvas texture before restarting the game
+				game.scene.start("playScene");
+				game.scene.stop("gameoverSceneSingle");
+			}
+		});
+
+		//Reference Button
+		referenceNoteButton.destroy();
+		referenceNoteButton = this.add.text(resolution[0], playerHeight * 2.2, 'Play Reference', { fontSize: fontSize + 'px', fill: fontColor, fontFamily: "Arial" });
+		referenceNoteButton.setBackgroundColor("#F0EAD2");
+		referenceNoteButton.setPadding(8, 8, 8, 8);
+		referenceNoteButton.setX(resolution[0] - referenceNoteButton.width - 10);
+		referenceNoteButton.setY(referenceNoteButton.y - 10);
+		referenceNoteButton.setInteractive();
+		referenceNoteButton.on('pointerdown', () => {
+			buttonPlayReference();
+		});
+
+		//Restart button
+		playPauseButton.destroy();
+		playPauseButton = gameoverContext.add.image(resolution[0] - 100, (playerHeight * 0.6), 'restart').setScale(0.6);
+		playPauseButton.setInteractive();
+		playPauseButton.on('pointerdown', function () {
+			game.anims.anims.clear() //Remove player animations before restarting the game
+			game.textures.remove("grid-texture"); //Remove canvas texture before restarting the game
+			game.scene.start("playScene");
+			game.scene.stop("gameoverSceneSingle");
+		});
+
+		//Settings button
+		settingsButton = gameoverContext.add.image(resolution[0] - (playerHeight * resolution[1] / 636) / 2 - 10, (playerHeight * 0.6), 'settings').setScale(0.6);
+		settingsButton.setInteractive();
+		settingsButton.on('pointerdown', function () {
+			game.scene.stop("playScene");
+			game.scene.stop("gameoverSceneSingle");
+			game.scene.stop("pauseSceneSingle");
+			game.scene.start("settingsScene");
+		});
+	}
+}
+game.scene.add("gameoverSceneSingle", gameoverSceneSingle);
 
 function createPlatformTexture(context, width, height, levelDuration, color = platformColor) {
 	graphics = context.add.graphics();
@@ -2951,13 +3218,6 @@ function manageStatus() {
 				game.scene.resume("playSceneMultiplayer");
 				game.scene.stop("pauseScene");
 
-				//playPauseButton.destroy();
-				//playPauseButton = gameContext.add.image(resolution[0] - 100, (playerHeight * 0.6), 'pause').setScale(0.8);
-				//playPauseButton.setInteractive();
-				//playPauseButton.on('pointerdown', function () {
-					//manageStatus();
-				//});
-
 				referenceNoteButton = gameContext.add.text(resolution[0] - 150, playerHeight * 2.2, 'Play Reference', { fontSize: fontSize + 'px', fill: fontColor, fontFamily: "Arial" });
 				referenceNoteButton.setBackgroundColor("#F0EAD2");
 				referenceNoteButton.setPadding(8, 8, 8, 8);
@@ -3009,12 +3269,136 @@ function manageStatus() {
 					gameContext.add.tween({ targets: statusText, ease: 'Sine.easeInOut', duration: 300, delay: 0, alpha: { getStart: () => 0, getEnd: () => 1 } });
 				}
 
-				//playPauseButton.destroy();
-				//playPauseButton = gameContext.add.image(resolution[0] - 100, (playerHeight * 0.6), 'pause').setScale(0.8);
-				//playPauseButton.setInteractive();
-				//playPauseButton.on('pointerdown', function () {
-				//	manageStatus();
-				//});
+				//Reload play reference button
+				referenceNoteButton = gameContext.add.text(resolution[0] - 150, playerHeight * 2.2, 'Play Reference', { fontSize: fontSize + 'px', fill: fontColor, fontFamily: "Arial" });
+				referenceNoteButton.setBackgroundColor("#F0EAD2");
+				referenceNoteButton.setPadding(8, 8, 8, 8);
+				referenceNoteButton.setX(resolution[0] - referenceNoteButton.width - 10);
+				referenceNoteButton.setY(referenceNoteButton.y - 10);
+				referenceNoteButton.setInteractive();
+				referenceNoteButton.on('pointerdown', () => {
+					buttonPlayReference();
+				});
+
+				if (!pitchDetector.isEnable()) {
+					if (levelsQueue[0] == 0 && endedPauseAnimation) {
+						pitchDetector.toggleEnable();
+					}
+					else if (levelsQueue[0] != 0) {
+						pitchDetector.toggleEnable();
+					}
+				}
+
+				//if next scale was playing, I finish it
+				if (scaleOnPlay == true)
+					playScale(gameLevelToScaleArray[gameLevel], noteReference, 0.5)
+
+			}
+			break;
+
+		default:
+			break;
+	}
+}
+
+function manageStatusSingle() {
+	switch (gameStatus) {
+
+		case "Started": //The game should start running
+			//pitchDetector.resumeAudioContext()	//to enable the AudioContext of PitchDetector
+			pitchDetector.start(); //Restart the pitch detector after resuming the AudioContext
+			game.scene.resume("playScene"); //Starting scene (update() function starts looping)
+			//playPauseButton.setTexture('pause');
+
+			if (pitchDetector.isEnable()) {
+				pitchDetector.toggleEnable();
+			}
+
+			gameStatus = "Intro";
+			player.body.setGravityY(playerGravity * (introVelocity / 10));
+			player.setVelocityY(-1 * Math.pow(2 * (gravity + playerGravity * (introVelocity / 10)) * stepHeight * 1.5 * 636 / resolution[1], 1 / 2));
+			collider.overlapOnly = true;
+
+			statusText.setText('Listen...');
+			tween = gameContext.add.tween({ targets: statusText, ease: 'Sine.easeInOut', duration: 300, delay: 0, alpha: { getStart: () => 0, getEnd: () => 1 } });
+			break;
+
+		case "Intro":
+			if (game.scene.isActive("playScene")) {
+				game.scene.pause("playScene");
+				game.scene.start("pauseSceneSingle");
+				if (pitchDetector.isEnable()) {
+					pitchDetector.toggleEnable();
+				}
+			}
+			else {
+				game.scene.resume("playScene");
+				game.scene.stop("pauseSceneSingle");
+
+				playPauseButton.destroy();
+				playPauseButton = gameContext.add.image(resolution[0] - 100, (playerHeight * 0.6), 'pause').setScale(0.8);
+				playPauseButton.setInteractive();
+				playPauseButton.on('pointerdown', function () {
+				manageStatusSingle();
+				});
+
+				referenceNoteButton = gameContext.add.text(resolution[0] - 150, playerHeight * 2.2, 'Play Reference', { fontSize: fontSize + 'px', fill: fontColor, fontFamily: "Arial" });
+				referenceNoteButton.setBackgroundColor("#F0EAD2");
+				referenceNoteButton.setPadding(8, 8, 8, 8);
+				referenceNoteButton.setX(resolution[0] - referenceNoteButton.width - 10);
+				referenceNoteButton.setY(referenceNoteButton.y - 10);
+				referenceNoteButton.setInteractive();
+				referenceNoteButton.on('pointerdown', () => {
+					buttonPlayReference();
+				});
+
+				if (initialScaleNote < 8) {
+					statusText.setText('Listen...');
+					tween = gameContext.add.tween({ targets: statusText, ease: 'Sine.easeInOut', duration: 300, delay: 0, alpha: { getStart: () => 0, getEnd: () => 1 } });
+				}
+				else if (countdown > 0) {
+					statusText.setText("Ready?!");
+					tween = gameContext.add.tween({ targets: statusText, ease: 'Sine.easeInOut', duration: 300, delay: 0, alpha: { getStart: () => 0, getEnd: () => 1 } });
+				}
+				else {
+					statusText.setText("Sing!");
+					tween = gameContext.add.tween({ targets: statusText, ease: 'Sine.easeInOut', duration: 300, delay: 0, alpha: { getStart: () => 0, getEnd: () => 1 } });
+					if (!pitchDetector.isEnable()) {
+						pitchDetector.toggleEnable();
+					}
+				}
+			}
+			break;
+
+		case "Running": //The game should toggle the pause status
+			if (game.scene.isActive("playScene")) {
+				game.scene.pause("playScene");
+				game.scene.start("pauseSceneSingle");
+				if (pitchDetector.isEnable()) {
+					pitchDetector.toggleEnable();
+				}
+			}
+			else {
+				game.scene.resume("playScene");
+				game.scene.stop("pauseSceneSingle");
+				statusText.setText();
+				if (changeLevelTextShown) {
+					statusTextSmall.setAlpha(0);
+					statusTextSmall.setText("Mode: " + gameLevelToScaleArray[gameLevel].charAt(0).toUpperCase() + gameLevelToScaleArray[gameLevel].slice(1));
+					statusText.setY(playerHeight * 1.1);
+					gameContext.add.tween({ targets: statusTextSmall, ease: 'Sine.easeInOut', duration: 300, delay: 0, alpha: { getStart: () => 0, getEnd: () => 1 } });
+
+					statusText.setAlpha(0);
+					statusText.setText("Level " + gameLevelProgressive);
+					gameContext.add.tween({ targets: statusText, ease: 'Sine.easeInOut', duration: 300, delay: 0, alpha: { getStart: () => 0, getEnd: () => 1 } });
+				}
+
+				playPauseButton.destroy();
+				playPauseButton = gameContext.add.image(resolution[0] - 100, (playerHeight * 0.6), 'pause').setScale(0.8);
+				playPauseButton.setInteractive();
+				playPauseButton.on('pointerdown', function () {
+					manageStatusSingle();
+				});
 
 				//Reload play reference button
 				referenceNoteButton = gameContext.add.text(resolution[0] - 150, playerHeight * 2.2, 'Play Reference', { fontSize: fontSize + 'px', fill: fontColor, fontFamily: "Arial" });
@@ -3055,7 +3439,7 @@ var buttonB = false
 document.onkeydown = function (event) {
 	if (!event.repeat) {
 		if (event.key == "Enter" || event.key == " ") {
-			manageStatus();
+			manageStatusSingle();
 		}
 		else if (buttonD && buttonB && ((gameStatus == "Running" && (player.body.touching.down || (levelsQueue[0] == 0)) && jumpArea) || (score == 0 && initialScaleNote == 8))) {
 			console.log("KEYS")
