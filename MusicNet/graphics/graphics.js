@@ -1622,6 +1622,14 @@ var playSceneMultiplayer = {
 				});
 			}
 
+			const tonicOctave = baseOctave + 1;
+			notes.push({
+				name: noteLetter,
+				octave: tonicOctave,
+				fullName: noteLetter + tonicOctave,
+				isSharp: noteLetter.includes('#')
+			});
+
 			return notes;
 		}
 
@@ -1656,7 +1664,7 @@ var playSceneMultiplayer = {
 				scaleTitle.setDepth(0);
 
 				// Añadir notas de la escala
-				scaleNotes.forEach((note, index) => {
+				scaleNotes.slice().reverse().forEach((note, index) => {
 					const yPos = pianoStartY + (keyHeight * index);
 					// Crear fondo de la tecla
 					const keyBg = this.add.rectangle(
@@ -1882,7 +1890,7 @@ var playSceneMultiplayer = {
 					WebRTCManager.onMessage((message) => {
 						console.log("📩 Mensaje recibido en playSceneMultiplayer:", message);
 						this.scores.opponent = message.score;
-						opponentScoreText.setText('Opponent: ' + message.score);
+						opponentScoreText.setText('Opponent: ' + this.scores.opponent);
 					});
 					statusText.setText("Sing!");
 					tween = gameContext.add.tween({ targets: statusText, ease: 'Sine.easeInOut', duration: 300, delay: 0, alpha: { getStart: () => 1, getEnd: () => 0 } });
@@ -1996,7 +2004,7 @@ var playSceneMultiplayer = {
 				platformVelocity = gameVelocity;
 			if (player.y > resolution[1] + player.height / 2) {
 				game.scene.pause("playSceneMultiplayer");
-				game.scene.start("gameoverScene");
+				game.scene.start("gameoverScene", {time: elapsedTime, score: score, scoreOpponent: this.scores.opponent, gameLevel: gameLevel, gameVelocity: gameVelocity, gameModality: gameModality});
 			}
 			if (!goAhead) {
 				if (gameStatus == "Running") {
@@ -2717,7 +2725,7 @@ var playScene = {
 			//------------------------------------------------------------------------------------------------------
 			if (player.y > resolution[1] + player.height / 2) { //When the player is below the screen resolution (no more visible), go to gameoverScene
 				game.scene.pause("playScene");
-				game.scene.start("gameoverSceneSingle");
+				game.scene.start("gameoverSceneSingle", { time: elapsedTime, score: score, gameLevel: gameLevel, gameVelocity: gameVelocity, gameModality: gameModality });
 			}
 
 			//GO TO DEATH MANAGER
@@ -2770,6 +2778,13 @@ var pauseScene = {
 game.scene.add("pauseScene", pauseScene);
 
 var gameoverScene = {
+	init(data) {
+		this.time = data.time;
+		this.score = data.score;
+		this.scoreOpponent = data.scoreOpponent;
+		this.gameLevel = data.gameLevel;
+		this.gameVelocity = data.gameVelocity;
+	},	
 	preload: function () {
 		this.load.image('restart', 'assets/restart.png');
 	},
@@ -2778,9 +2793,24 @@ var gameoverScene = {
 
 		gameStatus = "Gameover"; //in order to avoid checks made when the gamestatus is running
 		player.destroy(); //Destroy the player
+		const summaryText = `🎮 GAME RESULTS
 
-
-		gameoverText = this.add.text(resolution[0] / 2, resolution[1] / 2, 'Game Over!', { font: "bold 70px Arial", fill: fontColor }).setOrigin(0.5);
+		⏱ Time: ${this.time} seconds
+		🎯 Score: ${this.score} 
+		👤 Opponent Score: ${this.scoreOpponent}
+		🎵 Game Level: ${this.gameLevel}
+		🧠 Error: Tocaste  — Se esperaba 
+		
+		🔁 ¿Quieres intentar de nuevo esta escala? (Enter )
+		`;
+		
+		gameoverText = this.add.text(resolution[0] / 2, resolution[1] / 2, summaryText, {
+			font: "28px Arial",
+			fill: "#000000",
+			align: "center",
+			wordWrap: { width: resolution[0] - 100 }
+		}).setOrigin(0.5);
+		
 		gameoverText.setShadow(5, 5, 'rgba(250, 249, 243, 0.5)', 5);
 		gameoverText.setAlign('center');
 
@@ -2885,7 +2915,12 @@ var pauseSceneSingle = {
 }
 game.scene.add("pauseSceneSingle", pauseSceneSingle);
 
-var gameoverSceneSingle = {
+var gameoverSceneSingle = {	init(data) {
+	this.time = data.time;
+	this.score = data.score;
+	this.gameLevel = data.gameLevel;
+	this.gameVelocity = data.gameVelocity;
+},	
 	preload: function () {
 		this.load.image('restart', 'assets/restart.png');
 	},
@@ -2894,11 +2929,27 @@ var gameoverSceneSingle = {
 
 		gameStatus = "Gameover"; //in order to avoid checks made when the gamestatus is running
 		player.destroy(); //Destroy the player
+		let notaTocada = "D4";
+		let notaEsperada = "E4";
 
+		const summaryText = `🎮 GAME RESULTS
 
-		gameoverText = this.add.text(resolution[0] / 2, resolution[1] / 2, 'Game Over!', { font: "bold 70px Arial", fill: fontColor }).setOrigin(0.5);
-		gameoverText.setShadow(5, 5, 'rgba(250, 249, 243, 0.5)', 5);
-		gameoverText.setAlign('center');
+		⏱ Tiempo: ${this.time} seconds
+		🎯 Puntaje: ${this.score}
+		🎵 Game Level: ${this.gameLevel}
+		🧠 Error: Tocaste  — Se esperaba
+		
+		🔁 ¿Quieres intentar de nuevo esta escala? (Enter )
+		`;
+		
+		gameoverText = this.add.text(resolution[0] / 2, resolution[1] / 2, summaryText, {
+			font: "28px Arial",
+			fill: "#000000",
+			align: "center",
+			wordWrap: { width: resolution[0] - 100 }
+		}).setOrigin(0.5);
+		
+		gameoverText.setShadow(3, 3, 'rgba(250, 249, 243, 0.3)', 3);
 
 		gameoverText.setAlpha(0);
 		statusText.setAlpha(0);
@@ -3339,7 +3390,7 @@ function manageStatusSingle() {
 				playPauseButton = gameContext.add.image(resolution[0] - 100, (playerHeight * 0.6), 'pause').setScale(0.8);
 				playPauseButton.setInteractive();
 				playPauseButton.on('pointerdown', function () {
-				manageStatusSingle();
+					manageStatusSingle();
 				});
 
 				referenceNoteButton = gameContext.add.text(resolution[0] - 150, playerHeight * 2.2, 'Play Reference', { fontSize: fontSize + 'px', fill: fontColor, fontFamily: "Arial" });
