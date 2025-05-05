@@ -640,49 +640,62 @@ function generateRoomCode() {
 function createButton(scene, x, y, text, bgColor, textColor, width = 300, height = 70, fontSize = 26, callback, icon = null) {
 	let buttonContainer = scene.add.container(x, y);
 
+	// Fondo del botón
 	let buttonGraphics = scene.add.graphics();
 	buttonGraphics.fillStyle(bgColor, 1);
 	buttonGraphics.fillRoundedRect(-width / 2, -height / 2, width, height, 20);
 	buttonGraphics.lineStyle(2, 0xffffff, 0.2);
 	buttonGraphics.strokeRoundedRect(-width / 2, -height / 2, width, height, 20);
-
 	buttonContainer.add(buttonGraphics);
 
-	let offsetX = 0;
-	let iconText;
+	// Ícono y texto en un grupo interior
+	let contentContainer = scene.add.container(0, 0); // centrado respecto al botón
+	let spacing = 10;
 
 	if (icon) {
-		iconText = scene.add.text(-width / 2 + 30, 0, icon, {
+		let iconText = scene.add.text(0, 0, icon, {
 			font: `${fontSize}px Arial`,
 			fill: Phaser.Display.Color.RGBToString(
 				textColor >> 16,
 				(textColor >> 8) & 0xff,
 				textColor & 0xff
+			)
+		}).setOrigin(0.5);
+		contentContainer.add(iconText);
+
+		let buttonText = scene.add.text(0, 0, text, {
+			font: `bold ${fontSize}px Arial`,
+			fill: Phaser.Display.Color.RGBToString(
+				textColor >> 16,
+				(textColor >> 8) & 0xff,
+				textColor & 0xff
 			),
-		}).setOrigin(0.5, 0.5);
-		buttonContainer.add(iconText);
-		offsetX = 5; // espacio entre icono y texto
-	}
+			align: "center"
+		}).setOrigin(0.5);
 
-	let buttonText = scene.add.text(icon ? -width / 2 + 60 : 0, 0, text, {
-		font: `bold ${fontSize}px Arial`,
-		fill: Phaser.Display.Color.RGBToString(
-			textColor >> 16,
-			(textColor >> 8) & 0xff,
-			textColor & 0xff
-		),
-		align: "center"
-	});
+		scene.time.delayedCall(0, () => {
+			const totalWidth = iconText.width + spacing + buttonText.width;
+			iconText.x = -totalWidth / 2 + iconText.width / 2;
+			buttonText.x = iconText.x + iconText.width / 2 + spacing + buttonText.width / 2;
+		});		
 
-	// Centrado si no hay icono
-	if (!icon) {
-		buttonText.setOrigin(0.5);
+		contentContainer.add(buttonText);
 	} else {
-		buttonText.setOrigin(0, 0.5);
+		let buttonText = scene.add.text(0, 0, text, {
+			font: `bold ${fontSize}px Arial`,
+			fill: Phaser.Display.Color.RGBToString(
+				textColor >> 16,
+				(textColor >> 8) & 0xff,
+				textColor & 0xff
+			),
+			align: "center"
+		}).setOrigin(0.5);
+		contentContainer.add(buttonText);
 	}
 
-	buttonContainer.add(buttonText);
+	buttonContainer.add(contentContainer);
 
+	// Interacción
 	buttonContainer.setSize(width, height);
 	buttonContainer.setInteractive({ useHandCursor: true });
 
@@ -696,6 +709,7 @@ function createButton(scene, x, y, text, bgColor, textColor, width = 300, height
 		), 1);
 		buttonGraphics.fillRoundedRect(-width / 2, -height / 2, width, height, 20);
 	});
+
 	buttonContainer.on('pointerout', () => {
 		buttonGraphics.clear();
 		buttonGraphics.fillStyle(bgColor, 1);
@@ -2003,8 +2017,8 @@ var playSceneMultiplayer = {
 			if (gameStatus == "Running")
 				platformVelocity = gameVelocity;
 			if (player.y > resolution[1] + player.height / 2) {
-				game.scene.pause("playSceneMultiplayer");
-				game.scene.start("gameoverScene", {time: elapsedTime, score: score, scoreOpponent: this.scores.opponent, gameLevel: gameLevel, gameVelocity: gameVelocity, gameModality: gameModality});
+				game.scene.stop("playSceneMultiplayer");
+				game.scene.start("gameoverScene", {time: elapsedTime, score: score, scoreOpponent: this.scores.opponent, gameLevel: gameLevel, gameVelocity: gameVelocity, detectedNote: lastDetectedNote || "—",expectedNote: convertLevelToNote(levelsQueue[0]) || "—"});
 			}
 			if (!goAhead) {
 				if (gameStatus == "Running") {
@@ -2724,8 +2738,15 @@ var playScene = {
 			//GAME OVER HANDLER
 			//------------------------------------------------------------------------------------------------------
 			if (player.y > resolution[1] + player.height / 2) { //When the player is below the screen resolution (no more visible), go to gameoverScene
-				game.scene.pause("playScene");
-				game.scene.start("gameoverSceneSingle", { time: elapsedTime, score: score, gameLevel: gameLevel, gameVelocity: gameVelocity, gameModality: gameModality });
+				game.scene.stop("playScene");
+				game.scene.start("gameoverSceneSingle", {
+					time: elapsedTime,
+					score: score,
+					gameLevel: gameLevel,
+					gameVelocity: gameVelocity,
+					detectedNote: lastDetectedNote || "—",
+					expectedNote: convertLevelToNote(levelsQueue[0]) || "—"
+				});
 			}
 
 			//GO TO DEATH MANAGER
@@ -2784,93 +2805,92 @@ var gameoverScene = {
 		this.scoreOpponent = data.scoreOpponent;
 		this.gameLevel = data.gameLevel;
 		this.gameVelocity = data.gameVelocity;
-	},	
+		this.detectedNote = data.detectedNote || "—";
+		this.expectedNote = data.expectedNote || "—";
+	},
+
 	preload: function () {
 		this.load.image('restart', 'assets/restart.png');
 	},
+
 	create: function () {
 		gameoverContext = this;
+		gameStatus = "Gameover";
+		player.destroy();
 
-		gameStatus = "Gameover"; //in order to avoid checks made when the gamestatus is running
-		player.destroy(); //Destroy the player
-		const summaryText = `🎮 GAME RESULTS
+		this.add.rectangle(0, 0, resolution[0], resolution[1], 0xffffff, 1).setOrigin(0);
+		this.cameras.main.fadeIn(500, 255, 255, 255);
 
-		⏱ Time: ${this.time} seconds
-		🎯 Score: ${this.score} 
-		👤 Opponent Score: ${this.scoreOpponent}
-		🎵 Game Level: ${this.gameLevel}
-		🧠 Error: Tocaste  — Se esperaba 
-		
-		🔁 ¿Quieres intentar de nuevo esta escala? (Enter )
-		`;
-		
-		gameoverText = this.add.text(resolution[0] / 2, resolution[1] / 2, summaryText, {
-			font: "28px Arial",
-			fill: "#000000",
-			align: "center",
-			wordWrap: { width: resolution[0] - 100 }
+		this.add.text(resolution[0] / 2, resolution[1] / 2 - 140, "🎮 GAME RESULTS", {
+			font: "32px Arial",
+			fill: "#222",
+			fontStyle: "bold"
 		}).setOrigin(0.5);
-		
-		gameoverText.setShadow(5, 5, 'rgba(250, 249, 243, 0.5)', 5);
-		gameoverText.setAlign('center');
 
-		gameoverText.setAlpha(0);
-		statusText.setAlpha(0);
+		const infoLines = [
+			{ icon: "⏱", label: `Time: ${this.time} seconds` },
+			{ icon: "🎯", label: `Your score: ${this.score}` },
+			{ icon: "👤", label: `Opponent score: ${this.scoreOpponent}` },
+			{ icon: "🎵", label: `Level: ${this.gameLevel}` },
+			{ icon: "🧠", label: `You played: ${this.detectedNote} — Expected: ${this.expectedNote}` },
+			{ icon: "🔁", label: "Press Enter to try again" }
+		];
 
-		gameOverTween = gameoverContext.add.tween({ targets: gameoverText, ease: 'Sine.easeInOut', duration: 100, delay: 0, alpha: { getStart: () => 0, getEnd: () => 1 } });
-
-		if (fallBeforePause) {
-			statusText.setText('You should have played nothing!'); //Update the status text
-		}
-		else if (levelsQueue[0] != 0) {
-			statusText.setText('You should have played 🔊'); //Update the status text
-			playNote(convertLevelToNote(levelsQueue[0]), 1.5) //right note after another note
-		}
-		else {
-			statusText.setText('You should have played 🔊'); //Update the status text
-			playNote(convertLevelToNote(levelsQueue[1]), 1.5) //right note after a pause
-		}
-
-		statusTextTween = this.add.tween({ targets: statusText, ease: 'Sine.easeInOut', duration: 300, delay: 0, alpha: { getStart: () => 0, getEnd: () => 1 } });
-		if (!game.scene.isActive("playSceneMultiplayer"))
-			statusTextTween = this.add.tween({ targets: statusText, ease: 'Sine.easeInOut', duration: 300, delay: 1000, alpha: { getStart: () => 1, getEnd: () => 0 } });
-
-
-		if (pitchDetector.isEnable())
-			pitchDetector.toggleEnable(); //If the pitch detector is enabled, disable it
-
-		this.input.keyboard.on('keydown', function (e) {
-			if (e.key == " " || e.key == "Enter") {
-				game.anims.anims.clear() //Remove player animations before restarting the game
-				game.textures.remove("grid-texture"); //Remove canvas texture before restarting the game
-				game.scene.start("playSceneMultiplayer");
-				game.scene.stop("gameoverScene");
-			}
+		infoLines.forEach((item, i) => {
+			this.add.text(resolution[0] / 2, resolution[1] / 2 - 80 + i * 35, `${item.icon} ${item.label}`, {
+				font: "22px Arial",
+				fill: "#333",
+				align: "center"
+			}).setOrigin(0.5);
 		});
 
-		//Reference Button
-		referenceNoteButton.destroy();
-		referenceNoteButton = this.add.text(resolution[0], playerHeight * 2.2, 'Play Reference', { fontSize: fontSize + 'px', fill: fontColor, fontFamily: "Arial" });
-		referenceNoteButton.setBackgroundColor("#F0EAD2");
-		referenceNoteButton.setPadding(8, 8, 8, 8);
-		referenceNoteButton.setX(resolution[0] - referenceNoteButton.width - 10);
-		referenceNoteButton.setY(referenceNoteButton.y - 10);
-		referenceNoteButton.setInteractive();
-		referenceNoteButton.on('pointerdown', () => {
-			buttonPlayReference();
+		if (this.detectedNote === this.expectedNote) {
+			this.add.text(resolution[0] / 2, resolution[1] - 100, 
+				"🎶 You played the correct note,\nbut not at the right time.\nTry to improve your timing!", {
+				font: "20px Arial",
+				fill: "#BB0000",
+				align: "center"
+			}).setOrigin(0.5);
+		}
+
+		const noteButton = this.add.text(resolution[0] / 2, resolution[1] - 20, '🔊 Listen to expected note', {
+			font: '20px Arial',
+			fill: '#000',
+			backgroundColor: '#F0EAD2',
+			padding: { x: 12, y: 6 }
+		}).setOrigin(0.5).setInteractive();
+
+		noteButton.on('pointerdown', () => {
+			playNote(this.expectedNote, 1.5);
 		});
 
-		//Settings button
-		settingsButton = gameoverContext.add.image(resolution[0] - (playerHeight * resolution[1] / 636) / 2 - 10, (playerHeight * 0.6), 'settings').setScale(0.6);
-		settingsButton.setInteractive();
+		settingsButton = gameoverContext.add.image(resolution[0] - 50, 50, 'settings').setScale(0.6).setInteractive();
 		settingsButton.on('pointerdown', function () {
 			game.scene.stop("playSceneMultiplayer");
 			game.scene.stop("gameoverScene");
 			game.scene.stop("pauseScene");
-			game.scene.start("MultiPlayerSettingsScene");
+			game.scene.start("splashScene");
+		});
+
+		playPauseButton?.destroy();
+		playPauseButton = this.add.image(resolution[0] - 110, 50, 'restart').setScale(0.6).setInteractive();
+		playPauseButton.on('pointerdown', () => {
+			game.anims.anims.clear();
+			game.textures.remove("grid-texture");
+			game.scene.start("playSceneMultiplayer");
+			game.scene.stop("gameoverScene");
+		});
+
+		this.input.keyboard.on('keydown', function (e) {
+			if (e.key === " " || e.key === "Enter") {
+				game.anims.anims.clear();
+				game.textures.remove("grid-texture");
+				game.scene.start("playSceneMultiplayer");
+				game.scene.stop("gameoverScene");
+			}
 		});
 	}
-}
+};
 game.scene.add("gameoverScene", gameoverScene);
 
 var pauseSceneSingle = {
@@ -2915,110 +2935,96 @@ var pauseSceneSingle = {
 }
 game.scene.add("pauseSceneSingle", pauseSceneSingle);
 
-var gameoverSceneSingle = {	init(data) {
-	this.time = data.time;
-	this.score = data.score;
-	this.gameLevel = data.gameLevel;
-	this.gameVelocity = data.gameVelocity;
-},	
+var gameoverSceneSingle = {
+	init(data) {
+		this.time = data.time;
+		this.score = data.score;
+		this.gameLevel = data.gameLevel;
+		this.gameVelocity = data.gameVelocity;
+		this.detectedNote = data.detectedNote || "—";
+		this.expectedNote = data.expectedNote || "—";
+	},
+
 	preload: function () {
 		this.load.image('restart', 'assets/restart.png');
 	},
+
 	create: function () {
 		gameoverContext = this;
+		gameStatus = "Gameover";
+		player.destroy();
 
-		gameStatus = "Gameover"; //in order to avoid checks made when the gamestatus is running
-		player.destroy(); //Destroy the player
-		let notaTocada = "D4";
-		let notaEsperada = "E4";
+		this.add.rectangle(0, 0, resolution[0], resolution[1], 0xffffff, 1).setOrigin(0);
+		this.cameras.main.fadeIn(500, 255, 255, 255);
 
-		const summaryText = `🎮 GAME RESULTS
-
-		⏱ Tiempo: ${this.time} seconds
-		🎯 Puntaje: ${this.score}
-		🎵 Game Level: ${this.gameLevel}
-		🧠 Error: Tocaste  — Se esperaba
-		
-		🔁 ¿Quieres intentar de nuevo esta escala? (Enter )
-		`;
-		
-		gameoverText = this.add.text(resolution[0] / 2, resolution[1] / 2, summaryText, {
-			font: "28px Arial",
-			fill: "#000000",
-			align: "center",
-			wordWrap: { width: resolution[0] - 100 }
+		this.add.text(resolution[0] / 2, resolution[1] / 2 - 120, "🎮 GAME RESULTS", {
+			font: "32px Arial",
+			fill: "#222",
+			fontStyle: "bold"
 		}).setOrigin(0.5);
-		
-		gameoverText.setShadow(3, 3, 'rgba(250, 249, 243, 0.3)', 3);
 
-		gameoverText.setAlpha(0);
-		statusText.setAlpha(0);
+		const info = [
+			{ icon: "⏱", label: `Time: ${this.time} seconds` },
+			{ icon: "🎯", label: `Score: ${this.score}` },
+			{ icon: "🎵", label: `Level: ${this.gameLevel}` },
+			{ icon: "🧠", label: `You played: ${this.detectedNote} — Expected: ${this.expectedNote}` },
+			{ icon: "🔁", label: "Press Enter to try again" }
+		];
 
-		gameOverTween = gameoverContext.add.tween({ targets: gameoverText, ease: 'Sine.easeInOut', duration: 100, delay: 0, alpha: { getStart: () => 0, getEnd: () => 1 } });
-
-		if (fallBeforePause) {
-			statusText.setText('You should have played nothing!'); //Update the status text
-		}
-		else if (levelsQueue[0] != 0) {
-			statusText.setText('You should have played 🔊'); //Update the status text
-			playNote(convertLevelToNote(levelsQueue[0]), 1.5) //right note after another note
-		}
-		else {
-			statusText.setText('You should have played 🔊'); //Update the status text
-			playNote(convertLevelToNote(levelsQueue[1]), 1.5) //right note after a pause
-		}
-
-		statusTextTween = this.add.tween({ targets: statusText, ease: 'Sine.easeInOut', duration: 300, delay: 0, alpha: { getStart: () => 0, getEnd: () => 1 } });
-		if (!game.scene.isActive("playScene"))
-			statusTextTween = this.add.tween({ targets: statusText, ease: 'Sine.easeInOut', duration: 300, delay: 1000, alpha: { getStart: () => 1, getEnd: () => 0 } });
-
-
-		if (pitchDetector.isEnable())
-			pitchDetector.toggleEnable(); //If the pitch detector is enabled, disable it
-
-		this.input.keyboard.on('keydown', function (e) {
-			if (e.key == " " || e.key == "Enter") {
-				game.anims.anims.clear() //Remove player animations before restarting the game
-				game.textures.remove("grid-texture"); //Remove canvas texture before restarting the game
-				game.scene.start("playScene");
-				game.scene.stop("gameoverSceneSingle");
-			}
+		info.forEach((item, i) => {
+			this.add.text(resolution[0] / 2, resolution[1] / 2 - 60 + i * 35, `${item.icon} ${item.label}`, {
+				font: "22px Arial",
+				fill: "#333",
+				align: "center"
+			}).setOrigin(0.5);
 		});
 
-		//Reference Button
-		referenceNoteButton.destroy();
-		referenceNoteButton = this.add.text(resolution[0], playerHeight * 2.2, 'Play Reference', { fontSize: fontSize + 'px', fill: fontColor, fontFamily: "Arial" });
-		referenceNoteButton.setBackgroundColor("#F0EAD2");
-		referenceNoteButton.setPadding(8, 8, 8, 8);
-		referenceNoteButton.setX(resolution[0] - referenceNoteButton.width - 10);
-		referenceNoteButton.setY(referenceNoteButton.y - 10);
-		referenceNoteButton.setInteractive();
-		referenceNoteButton.on('pointerdown', () => {
-			buttonPlayReference();
+		if (this.detectedNote === this.expectedNote) {
+			this.add.text(resolution[0] / 2, resolution[1] - 100,
+				"🎶 You played the correct note,\nbut not at the right time.\nTry to improve your timing!", {
+				font: "20px Arial",
+				fill: "#BB0000",
+				align: "center"
+			}).setOrigin(0.5);
+		}
+
+		const noteButton = this.add.text(resolution[0] / 2, resolution[1] - 50, '🔊 Listen to expected note', {
+			font: '20px Arial',
+			fill: '#000',
+			backgroundColor: '#F0EAD2',
+			padding: { x: 12, y: 6 }
+		}).setOrigin(0.5).setInteractive();
+
+		noteButton.on('pointerdown', () => {
+			playNote(this.expectedNote, 1.5);
 		});
 
-		//Restart button
-		playPauseButton.destroy();
-		playPauseButton = gameoverContext.add.image(resolution[0] - 100, (playerHeight * 0.6), 'restart').setScale(0.6);
-		playPauseButton.setInteractive();
-		playPauseButton.on('pointerdown', function () {
-			game.anims.anims.clear() //Remove player animations before restarting the game
-			game.textures.remove("grid-texture"); //Remove canvas texture before restarting the game
-			game.scene.start("playScene");
-			game.scene.stop("gameoverSceneSingle");
-		});
-
-		//Settings button
-		settingsButton = gameoverContext.add.image(resolution[0] - (playerHeight * resolution[1] / 636) / 2 - 10, (playerHeight * 0.6), 'settings').setScale(0.6);
-		settingsButton.setInteractive();
-		settingsButton.on('pointerdown', function () {
-			game.scene.stop("playScene");
+		settingsButton = this.add.image(resolution[0] - 50, 50, 'settings').setScale(0.6).setInteractive();
+		settingsButton.on('pointerdown', () => {
 			game.scene.stop("gameoverSceneSingle");
 			game.scene.stop("pauseSceneSingle");
 			game.scene.start("settingsScene");
 		});
+
+		playPauseButton.destroy();
+		playPauseButton = this.add.image(resolution[0] - 110, 50, 'restart').setScale(0.6).setInteractive();
+		playPauseButton.on('pointerdown', () => {
+			game.anims.anims.clear();
+			game.textures.remove("grid-texture");
+			game.scene.start("playScene");
+			game.scene.stop("gameoverSceneSingle");
+		});
+
+		this.input.keyboard.on('keydown', (e) => {
+			if (e.key === " " || e.key === "Enter") {
+				game.anims.anims.clear();
+				game.textures.remove("grid-texture");
+				game.scene.start("playScene");
+				game.scene.stop("gameoverSceneSingle");
+			}
+		});
 	}
-}
+};
 game.scene.add("gameoverSceneSingle", gameoverSceneSingle);
 
 function createPlatformTexture(context, width, height, levelDuration, color = platformColor) {

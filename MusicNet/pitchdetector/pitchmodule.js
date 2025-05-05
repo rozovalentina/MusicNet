@@ -4,6 +4,7 @@ Reference: https://github.com/qiuxiang/tuner
 */
 
 var beforeInJumpArea = false
+var lastDetectedNote = null;
 
 const PitchDetector = function() {
   this.tuner = new Tuner()
@@ -41,6 +42,7 @@ PitchDetector.prototype.start = function() {
         musicalNote = note.name + note.octave
         //console.log(musicalNote)
         // CALL ScaleMapping Module
+        lastDetectedNote = musicalNote;
         newNote(musicalNote)
         //self.lastNote = null
         
