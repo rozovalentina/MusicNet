@@ -1465,6 +1465,7 @@ var playSceneMultiplayer = {
 		}
 
 		// Guardar referencia al contexto
+		accuracyList = [];
 		const scene = this;
 		this.scores = { player: 0, opponent: 0, lastUpdate: 0 };
 		this.currentRoomId = data.roomCode || '';
@@ -1920,6 +1921,7 @@ var playSceneMultiplayer = {
 			}
 			else {
 				if (levelsQueue[0] != 0 || jumpFromPause) {
+					nextExpectedNoteTime = performance.now();
 					player.anims.play('playerStop', true);
 				}
 				platformTouched = false;
@@ -2129,6 +2131,7 @@ var playScene = {
 		tween = this.add.tween({ targets: backgroundImage, ease: 'Sine.easeInOut', duration: 1000, delay: 0, alpha: { getStart: () => 0, getEnd: () => 1 } });
 
 		//Set world bounds
+		accuracyList = [];
 		this.physics.world.setBounds(0, 0, resolution[0], resolution[1]);
 
 		//Footer
@@ -2606,6 +2609,7 @@ var playScene = {
 			else {
 				if (levelsQueue[0] != 0 || jumpFromPause) {
 					player.anims.play('playerStop', true);
+					nextExpectedNoteTime = performance.now();
 				}
 				platformTouched = false;
 			}
@@ -2827,12 +2831,17 @@ var gameoverScene = {
 			fontStyle: "bold"
 		}).setOrigin(0.5);
 
+		const avgAccuracy = accuracyList.length > 0
+			? (accuracyList.reduce((a, b) => a + b, 0) / accuracyList.length).toFixed(1)
+			: "N/A";
+
 		const infoLines = [
 			{ icon: "⏱", label: `Time: ${this.time} seconds` },
 			{ icon: "🎯", label: `Your score: ${this.score}` },
 			{ icon: "👤", label: `Opponent score: ${this.scoreOpponent}` },
 			{ icon: "🎵", label: `Level: ${this.gameLevel}` },
 			{ icon: "🧠", label: `You played: ${this.detectedNote} — Expected: ${this.expectedNote}` },
+			{ icon: "🎯", label: `Accuracy Time: ${avgAccuracy}%` },
 			{ icon: "🔁", label: "Press Enter to try again" }
 		];
 
@@ -2963,11 +2972,16 @@ var gameoverSceneSingle = {
 			fontStyle: "bold"
 		}).setOrigin(0.5);
 
+		const avgAccuracy = accuracyList.length > 0
+			? (accuracyList.reduce((a, b) => a + b, 0) / accuracyList.length).toFixed(1)
+			: "N/A";
+
 		const info = [
 			{ icon: "⏱", label: `Time: ${this.time} seconds` },
 			{ icon: "🎯", label: `Score: ${this.score}` },
 			{ icon: "🎵", label: `Level: ${this.gameLevel}` },
 			{ icon: "🧠", label: `You played: ${this.detectedNote} — Expected: ${this.expectedNote}` },
+			{ icon: "🎯", label: `Accuracy Time: ${avgAccuracy}%` },
 			{ icon: "🔁", label: "Press Enter to try again" }
 		];
 

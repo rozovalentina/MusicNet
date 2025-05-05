@@ -71,6 +71,8 @@ gameLevelToScaleArray[6] = "locrian"
 
 var scales = gameLevelToScaleArray // to have the scales name of the modes
 
+var nextExpectedNoteTime = performance.now();
+
 var GAME_MODE = {
   STATIC: 1,
   PROGRESSIVE: 2
@@ -112,11 +114,15 @@ function playNote(note, duration){
   }
 }
 
+function getExpectedNoteTime() {
+	return nextExpectedNoteTime || performance.now();
+}
 
 // play a level of the gameGrid: based on the currentScale and the current noteReference
 function playLevel(level){
   if(level > 0 && level < 9)
   note = currentScale[level-1]
+  nextExpectedNoteTime = performance.now()
   playNote(note, 1) // play note with 1 sec of duration
 }
 
@@ -192,13 +198,33 @@ function convertLevelToNote(level){
   return note
 }
 
+const toleranciaMs = 200;
+let accuracyList = [];
+
+function handleDetectedNote(level, noteName, detectionTime) {
+	const expectedTime = getExpectedNoteTime(); // ← debes implementar esto
+	const delayMs = Math.abs(detectionTime - expectedTime);
+
+	let accuracy = Math.max(0, 100 - (delayMs / toleranciaMs) * 100);
+	accuracy = Math.min(accuracy, 100);
+
+	accuracyList.push(accuracy);
+
+	// Guardar esta nota como última detectada si fue la que causó el fallo
+	lastDetectedNote = noteName;
+	lastDetectedTime = detectionTime;
+
+	jumpAtLevel(level);
+}
+
 /*
 * this function is called from the pitchDetector Module when a new note is detected
 * musicalNote = a note with its octave: ex C#3
 */function newNote(musicalNote){
   	level = 0
     level = convertNoteToLevel(musicalNote)
-
+    const detectionTime = performance.now();
+	  handleDetectedNote(level, musicalNote, detectionTime);
     /*
     if(level!=0)
       console.log(musicalNote)
@@ -206,7 +232,7 @@ function convertLevelToNote(level){
     */
     
   	//CALL graphicsModule
-  	jumpAtLevel(level)
+  	//jumpAtLevel(level)
 }
 
 //calucate the current scale based on the note and scale reference in setting
