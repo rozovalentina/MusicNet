@@ -102,9 +102,8 @@ async function grabarYEnviarAudio() {
         const audioBlob = new Blob(chunks, { type: 'audio/webm' });
         const formData = new FormData();
         formData.append("audio", audioBlob, "nota.webm");
-
         try {
-          const response = await fetch("http://localhost:8081/detect_note", {
+          const response = await fetch("https://parcnet.onrender.com/detect_note", {
             method: "POST",
             body: formData
           });
