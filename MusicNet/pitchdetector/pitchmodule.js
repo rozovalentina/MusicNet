@@ -43,8 +43,10 @@ PitchDetector.prototype.start = function() {
         //console.log(musicalNote)
         // CALL ScaleMapping Module
         lastDetectedNote = musicalNote;
+        self.lastLocalNote = musicalNote;
         newNote(musicalNote)
         //self.lastNote = null
+        self.detectRemoteNote();
         
       }
 
@@ -63,6 +65,60 @@ PitchDetector.prototype.start = function() {
   }
 
   
+}
+
+PitchDetector.prototype.detectRemoteNote = async function() {
+  try {
+    const resultado = await grabarYEnviarAudio();
+    if (resultado.note) {
+      console.log("🎼 Nota detectada en servidor:", resultado.note);
+
+      // Comparar con la nota local más reciente
+      if (resultado.note === this.lastLocalNote) {
+        console.log("✅ Coinciden: nota local y remota son iguales:", resultado.note);
+      } else {
+        console.log("❌ Diferencia: local =", this.lastLocalNote, ", servidor =", resultado.note);
+      }
+
+    } else {
+      console.warn("⚠️ No se detectó ninguna nota en el servidor.");
+    }
+  } catch (err) {
+    console.error("❌ Error al enviar audio al servidor:", err);
+  }
+};
+
+async function grabarYEnviarAudio() {
+  return new Promise((resolve, reject) => {
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+      const mediaRecorder = new MediaRecorder(stream);
+      const chunks = [];
+
+      mediaRecorder.ondataavailable = event => {
+        if (event.data.size > 0) chunks.push(event.data);
+      };
+
+      mediaRecorder.onstop = async () => {
+        const audioBlob = new Blob(chunks, { type: 'audio/webm' });
+        const formData = new FormData();
+        formData.append("audio", audioBlob, "nota.webm");
+
+        try {
+          const response = await fetch("http://localhost:8081/detect_note", {
+            method: "POST",
+            body: formData
+          });
+          const result = await response.json();
+          resolve(result); // {note: "C4", frequency: 261.63}
+        } catch (error) {
+          reject(error);
+        }
+      };
+
+      mediaRecorder.start();
+      setTimeout(() => mediaRecorder.stop(), 1000); // Graba 1 segundo
+    });
+  });
 }
 
 
