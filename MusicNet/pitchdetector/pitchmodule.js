@@ -103,10 +103,10 @@ async function grabarYEnviarAudio() {
         const formData = new FormData();
         formData.append("audio", audioBlob, "nota.webm");
         try {
-          const response = await fetch("https://parcnet.onrender.com/detect_note", {
+          const response = await fetch("https://parcnet-api.onrender.com/detect_note", {
             method: "POST",
             body: formData
-          });
+          });          
           const result = await response.json();
           resolve(result); // {note: "C4", frequency: 261.63}
         } catch (error) {
