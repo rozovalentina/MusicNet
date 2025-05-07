@@ -1598,57 +1598,7 @@ var playSceneMultiplayer = {
 		measureGrids = this.physics.add.staticGroup();
 		gridLength = measurePlatformWidth;
 		numberOfInitialMeasures = resolution[0] / measurePlatformWidth;
-		// Obtener configuración de escala desde settingsScene
-		const currentScale = modalScaleName; // 'ionian', 'dorian', etc.
-		const baseNote = firstNote; // Ej: 'C4'
-		const baseOctave = parseInt(baseNote.slice(-1));
-		const noteLetter = baseNote.replace(/\d/g, ''); // Extrae solo las letras (C, C#, etc.)
-
-		// Configuración de escalas modales mejorada
-		const modalScales = {
-			'ionian': [0, 2, 4, 5, 7, 9, 11],  // Escala mayor
-			'dorian': [0, 2, 3, 5, 7, 9, 10],
-			'phrygian': [0, 1, 3, 5, 7, 8, 10],
-			'lydian': [0, 2, 4, 6, 7, 9, 11],
-			'mixolydian': [0, 2, 4, 5, 7, 9, 10],
-			'aeolian': [0, 2, 3, 5, 7, 8, 10],  // Escala menor natural
-			'locrian': [0, 1, 3, 5, 6, 8, 10]
-		};
-
-		const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-
-		// Función para generar las notas de la escala actual
-		function getScaleNotes() {
-			const scaleIntervals = modalScales[currentScale];
-			const baseIndex = noteNames.indexOf(noteLetter);
-			let notes = [];
-
-			// Generar 1 octavas de la escala
-			for (let oct = 0; oct < 1; oct++) {
-				scaleIntervals.forEach(interval => {
-					const noteIndex = (baseIndex + interval) % 12;
-					const currentOctave = baseOctave + oct;
-					notes.push({
-						name: noteNames[noteIndex],
-						octave: currentOctave,
-						fullName: noteNames[noteIndex] + currentOctave,
-						isSharp: noteNames[noteIndex].includes('#')
-					});
-				});
-			}
-
-			const tonicOctave = baseOctave + 1;
-			notes.push({
-				name: noteLetter,
-				octave: tonicOctave,
-				fullName: noteLetter + tonicOctave,
-				isSharp: noteLetter.includes('#')
-			});
-
-			return notes;
-		}
-
-		const scaleNotes = getScaleNotes();
+	
 
 		// Crear el grid con referencias de piano
 		for (let i = 0; i < numberOfInitialMeasures; i++) {
@@ -1659,66 +1609,6 @@ var playSceneMultiplayer = {
 			lastGrid.setDepth(-1);
 			lastGrid.progressiveNumber = 0;
 
-			// Añadir referencias de piano solo en la primera columna
-			if (i === 0) {
-				const totalHeight = lastGrid.displayHeight;
-				const keyHeight = totalHeight / scaleNotes.length;
-				const pianoWidth = 60; // Ancho reducido para las teclas
-
-				// Posición inicial (pegado al borde izquierdo del grid)
-				const pianoStartX = gridX - lastGrid.displayWidth / 2;
-				const pianoStartY = gridY - lastGrid.displayHeight / 2;
-
-				// Añadir título de la escala
-				const scaleTitle = this.add.text(
-					pianoStartX + 5,
-					pianoStartY - 20,
-					`${noteLetter} ${currentScale}`,
-					{ font: '14px Arial', fill: '#6C584C' }
-				);
-				scaleTitle.setDepth(0);
-
-				// Añadir notas de la escala
-				scaleNotes.slice().reverse().forEach((note, index) => {
-					const yPos = pianoStartY + (keyHeight * index);
-					// Crear fondo de la tecla
-					const keyBg = this.add.rectangle(
-						pianoStartX,
-						yPos,
-						pianoWidth,
-						keyHeight,
-						note.isSharp ? 0x333333 : 0xFFFFFF
-					).setOrigin(0, 0);
-					;
-
-					// Crear texto de la nota
-					const noteText = this.add.text(
-						pianoStartX + pianoWidth / 2,
-						yPos + keyHeight / 2,
-						note.fullName,
-						{
-							font: '12px Arial',
-							fill: note.isSharp ? '#FFFFFF' : '#000000',
-							align: 'center'
-						}
-					);
-					noteText.setOrigin(0.5);
-
-					// Hacer la nota interactiva
-					noteText.setInteractive();
-					noteText.on('pointerdown', () => {
-						playNote(note.fullName, 1.0);
-
-						// Efecto visual al tocar
-						this.tweens.add({
-							targets: keyBg,
-							fillColor: note.isSharp ? 0x555555 : 0xDDDDDD,
-							duration: 100,
-							yoyo: true
-						});
-					});
-				});
-			}
 		}
 
 		//Creation of collider between the player and the platforms, with a callback function
@@ -2233,57 +2123,6 @@ var playScene = {
 		gridLength = measurePlatformWidth;
 		numberOfInitialMeasures = resolution[0] / measurePlatformWidth;
 
-		// Obtener configuración de escala desde settingsScene
-		const currentScale = modalScaleName; // 'ionian', 'dorian', etc.
-		const baseNote = firstNote; // Ej: 'C4'
-		const baseOctave = parseInt(baseNote.slice(-1));
-		const noteLetter = baseNote.replace(/\d/g, ''); // Extrae solo las letras (C, C#, etc.)
-
-		// Configuración de escalas modales mejorada
-		const modalScales = {
-			'ionian': [0, 2, 4, 5, 7, 9, 11],  // Escala mayor
-			'dorian': [0, 2, 3, 5, 7, 9, 10],
-			'phrygian': [0, 1, 3, 5, 7, 8, 10],
-			'lydian': [0, 2, 4, 6, 7, 9, 11],
-			'mixolydian': [0, 2, 4, 5, 7, 9, 10],
-			'aeolian': [0, 2, 3, 5, 7, 8, 10],  // Escala menor natural
-			'locrian': [0, 1, 3, 5, 6, 8, 10]
-		};
-
-		const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-
-		// Función para generar las notas de la escala actual
-		function getScaleNotes() {
-			const scaleIntervals = modalScales[currentScale];
-			const baseIndex = noteNames.indexOf(noteLetter);
-			let notes = [];
-
-			// Generar 1 octavas de la escala
-			for (let oct = 0; oct < 1; oct++) {
-				scaleIntervals.forEach(interval => {
-					const noteIndex = (baseIndex + interval) % 12;
-					const currentOctave = baseOctave + oct;
-					notes.push({
-						name: noteNames[noteIndex],
-						octave: currentOctave,
-						fullName: noteNames[noteIndex] + currentOctave,
-						isSharp: noteNames[noteIndex].includes('#')
-					});
-				});
-			}
-
-			const tonicOctave = baseOctave + 1;
-			notes.push({
-				name: noteLetter,
-				octave: tonicOctave,
-				fullName: noteLetter + tonicOctave,
-				isSharp: noteLetter.includes('#')
-			});
-
-			return notes;
-		}
-
-		const scaleNotes = getScaleNotes();
 
 		// Crear el grid con referencias de piano
 		for (let i = 0; i < numberOfInitialMeasures; i++) {
@@ -2293,67 +2132,6 @@ var playScene = {
 			lastGrid = measureGrids.create(gridX, gridY, 'grid-texture');
 			lastGrid.setDepth(-1);
 			lastGrid.progressiveNumber = 0;
-
-			// Añadir referencias de piano solo en la primera columna
-			if (i === 0) {
-				const totalHeight = lastGrid.displayHeight;
-				const keyHeight = totalHeight / scaleNotes.length;
-				const pianoWidth = 60; // Ancho reducido para las teclas
-
-				// Posición inicial (pegado al borde izquierdo del grid)
-				const pianoStartX = gridX - lastGrid.displayWidth / 2;
-				const pianoStartY = gridY - lastGrid.displayHeight / 2;
-
-				// Añadir título de la escala
-				const scaleTitle = this.add.text(
-					pianoStartX + 5,
-					pianoStartY - 20,
-					`${noteLetter} ${currentScale}`,
-					{ font: '14px Arial', fill: '#6C584C' }
-				);
-				scaleTitle.setDepth(0);
-
-				// Añadir notas de la escala
-				scaleNotes.slice().reverse().forEach((note, index) => {
-					const yPos = pianoStartY + (keyHeight * index);
-					// Crear fondo de la tecla
-					const keyBg = this.add.rectangle(
-						pianoStartX,
-						yPos,
-						pianoWidth,
-						keyHeight,
-						note.isSharp ? 0x333333 : 0xFFFFFF
-					).setOrigin(0, 0);
-					;
-
-					// Crear texto de la nota
-					const noteText = this.add.text(
-						pianoStartX + pianoWidth / 2,
-						yPos + keyHeight / 2,
-						note.fullName,
-						{
-							font: '12px Arial',
-							fill: note.isSharp ? '#FFFFFF' : '#000000',
-							align: 'center'
-						}
-					);
-					noteText.setOrigin(0.5);
-
-					// Hacer la nota interactiva
-					noteText.setInteractive();
-					noteText.on('pointerdown', () => {
-						playNote(note.fullName, 1.0);
-
-						// Efecto visual al tocar
-						this.tweens.add({
-							targets: keyBg,
-							fillColor: note.isSharp ? 0x555555 : 0xDDDDDD,
-							duration: 100,
-							yoyo: true
-						});
-					});
-				});
-			}
 		}
 
 
@@ -2821,10 +2599,32 @@ var gameoverScene = {
 		gameoverContext = this;
 		gameStatus = "Gameover";
 		player.destroy();
-
+		this.cameras.main.setBackgroundColor('#FFFFE0'); // fondo estilo mockup
 		this.add.rectangle(0, 0, resolution[0], resolution[1], 0xffffff, 1).setOrigin(0);
 		this.cameras.main.fadeIn(500, 255, 255, 255);
+		// 🎵 Notas flotantes animadas
+		this.notesGroup = this.add.group();
+		let noteKeys = ['note1', 'note2', 'note3', 'player'];
 
+		for (let i = 0; i < 12; i++) {
+			let key = Phaser.Utils.Array.GetRandom(noteKeys);
+			let note = this.add.image(
+				Phaser.Math.Between(0, resolution[0]),
+				Phaser.Math.Between(0, resolution[1]),
+				key
+			).setAlpha(0.15).setScale(Phaser.Math.FloatBetween(0.3, 0.6));
+			this.notesGroup.add(note);
+
+			this.tweens.add({
+				targets: note,
+				y: note.y - Phaser.Math.Between(20, 40),
+				duration: Phaser.Math.Between(3000, 5000),
+				yoyo: true,
+				repeat: -1,
+				ease: 'Sine.easeInOut',
+				delay: Phaser.Math.Between(0, 1000)
+			});
+		}
 		this.add.text(resolution[0] / 2, resolution[1] / 2 - 140, "🎮 GAME RESULTS", {
 			font: "32px Arial",
 			fill: "#222",
@@ -2964,8 +2764,31 @@ var gameoverSceneSingle = {
 		player.destroy();
 
 		this.add.rectangle(0, 0, resolution[0], resolution[1], 0xffffff, 1).setOrigin(0);
+		this.cameras.main.setBackgroundColor('#FFFFE0'); // fondo estilo mockup
 		this.cameras.main.fadeIn(500, 255, 255, 255);
+		// 🎵 Notas flotantes animadas
+		this.notesGroup = this.add.group();
+		let noteKeys = ['note1', 'note2', 'note3', 'player'];
 
+		for (let i = 0; i < 12; i++) {
+			let key = Phaser.Utils.Array.GetRandom(noteKeys);
+			let note = this.add.image(
+				Phaser.Math.Between(0, resolution[0]),
+				Phaser.Math.Between(0, resolution[1]),
+				key
+			).setAlpha(0.15).setScale(Phaser.Math.FloatBetween(0.3, 0.6));
+			this.notesGroup.add(note);
+
+			this.tweens.add({
+				targets: note,
+				y: note.y - Phaser.Math.Between(20, 40),
+				duration: Phaser.Math.Between(3000, 5000),
+				yoyo: true,
+				repeat: -1,
+				ease: 'Sine.easeInOut',
+				delay: Phaser.Math.Between(0, 1000)
+			});
+		}
 		this.add.text(resolution[0] / 2, resolution[1] / 2 - 120, "🎮 GAME RESULTS", {
 			font: "32px Arial",
 			fill: "#222",
@@ -3067,6 +2890,109 @@ function createGridTexture(context, measurePlatformWidth, timeSignature) {
 
 				textureContext.fillStyle = grd;
 				textureContext.fillRect(xPointer, 0, xPointer + 5, window.innerHeight);
+				
+				// Agregar referencia de piano justo después de dibujar la primera línea
+				const currentScale = modalScaleName;
+				const baseNote = firstNote;
+				const baseOctave = parseInt(baseNote.slice(-1));
+				const noteLetter = baseNote.replace(/\d/g, '');
+
+				const modalScales = {
+					'ionian': [0, 2, 4, 5, 7, 9, 11],
+					'dorian': [0, 2, 3, 5, 7, 9, 10],
+					'phrygian': [0, 1, 3, 5, 7, 8, 10],
+					'lydian': [0, 2, 4, 6, 7, 9, 11],
+					'mixolydian': [0, 2, 4, 5, 7, 9, 10],
+					'aeolian': [0, 2, 3, 5, 7, 8, 10],
+					'locrian': [0, 1, 3, 5, 6, 8, 10]
+				};
+
+				const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+
+				function getScaleNotes() {
+					const scaleIntervals = modalScales[currentScale];
+					const baseIndex = noteNames.indexOf(noteLetter);
+					let notes = [];
+
+					for (let oct = 0; oct < 1; oct++) {
+						scaleIntervals.forEach(interval => {
+							const noteIndex = (baseIndex + interval) % 12;
+							const currentOctave = baseOctave + oct;
+							notes.push({
+								name: noteNames[noteIndex],
+								octave: currentOctave,
+								fullName: noteNames[noteIndex] + currentOctave,
+								isSharp: noteNames[noteIndex].includes('#')
+							});
+						});
+					}
+
+					const tonicOctave = baseOctave + 1;
+					notes.push({
+						name: noteLetter,
+						octave: tonicOctave,
+						fullName: noteLetter + tonicOctave,
+						isSharp: noteLetter.includes('#')
+					});
+
+					return notes;
+				}
+
+				const scaleNotes = getScaleNotes();
+
+				// Suponiendo que estás en un contexto de escena de Phaser
+				const totalHeight = texture.height;
+				const keyHeight = totalHeight / scaleNotes.length;
+				const pianoWidth = 60;
+
+				const pianoStartX = 0; // Alineado con el borde izquierdo del grid
+				const pianoStartY = 142;
+
+				// Añadir título de la escala
+				const scaleTitle = context.add.text(
+					pianoStartX + 5,
+					pianoStartY - 20,
+					`${noteLetter} ${currentScale}`,
+					{ font: '14px Arial', fill: '#6C584C' }
+				);
+				scaleTitle.setDepth(0);
+
+				// Añadir notas de la escala
+				scaleNotes.slice().reverse().forEach((note, index) => {
+					const yPos = pianoStartY + (keyHeight * index);
+					const keyBg = context.add.rectangle(
+						pianoStartX,
+						yPos,
+						pianoWidth,
+						keyHeight,
+						note.isSharp ? 0x333333 : 0xFFFFFF
+					).setOrigin(0, 0);
+					keyBg.setStrokeStyle(2, 0x000000); // 2px border, black color
+
+					const noteText = context.add.text(
+						pianoStartX + pianoWidth / 2,
+						yPos + keyHeight / 2,
+						note.fullName,
+						{
+							font: '12px Arial',
+							fill: note.isSharp ? '#FFFFFF' : '#000000',
+							align: 'center'
+						}
+					);
+					noteText.setOrigin(0.5);
+
+					noteText.setInteractive();
+					noteText.on('pointerdown', () => {
+						playNote(note.fullName, 1.0);
+
+						context.tweens.add({
+							targets: keyBg,
+							fillColor: note.isSharp ? 0x555555 : 0xDDDDDD,
+							duration: 100,
+							yoyo: true
+						});
+					});
+				});
 				break;
 			case 1:
 			case 3:
