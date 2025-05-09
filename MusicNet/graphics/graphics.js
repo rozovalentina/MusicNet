@@ -1483,6 +1483,19 @@ var playSceneMultiplayer = {
 		this.isHost = !!data.isHost;
 		this.gameSettings = data.settings || {};
 
+		if (this.gameSettings.noteReference) {
+			firstNote = this.gameSettings.noteReference;
+		}
+		if (this.gameSettings.modalScaleName) {
+			modalScaleName = this.gameSettings.modalScaleName;
+		}
+		if (typeof this.gameSettings.gameModality === 'number') {
+			gameModality = this.gameSettings.gameModality;
+		}
+
+		changeNoteReference(firstNote);
+    	changeScaleReference(modalScaleName);
+
 		// Conexión WebRTC ya creada en escenas anteriores
 		this.peerConnection = WebRTCManager.getPeerConnection?.();
 		this.dataChannel = WebRTCManager.getDataChannel?.();
@@ -1616,7 +1629,7 @@ var playSceneMultiplayer = {
 		}
 
 		//Creation of collider between the player and the platforms, with a callback function
-		collider = this.physics.add.collider(player, platforms, platformsColliderCallbackMultiplayer);
+		collider = this.physics.add.collider(player, platforms, platformsColliderCallbackMultiplayer,null,this);
 		scoreText = this.add.text(16, 16, 'Score: ' + score, { fontSize: fontSize + 'px', fill: fontColor, fontFamily: "Arial" });
 
 		opponentScoreText = this.add.text(16, 40, 'Opponent: 0', { fontSize: fontSize + 'px', fill: fontColor, fontFamily: "Arial" }).setScrollFactor(0);
@@ -2608,125 +2621,100 @@ game.scene.add("pauseScene", pauseScene);
 
 var gameoverScene = {
 	init(data) {
-		this.time = data.time;
-		this.score = data.score;
-		this.scoreOpponent = data.scoreOpponent;
-		this.gameLevel = data.gameLevel;
-		this.gameVelocity = data.gameVelocity;
-		this.detectedNote = data.detectedNote || "—";
-		this.expectedNote = data.expectedNote || "—";
+	  this.time = data.time;
+	  this.score = data.score;
+	  this.scoreOpponent = data.scoreOpponent;
+	  this.gameLevel = data.gameLevel;
+	  this.gameVelocity = data.gameVelocity;
+	  this.detectedNote = data.detectedNote || "—";
+	  this.expectedNote = data.expectedNote || "—";
+	  this.roomCode = data.roomCode;
 	},
-
-	preload: function () {
-		this.load.image('restart', 'assets/restart.png');
+	preload() {
+	  this.load.image('restart', 'assets/restart.png');
 	},
-
-	create: function () {
-		gameoverContext = this;
-		gameStatus = "Gameover";
-		player.destroy();
-		this.cameras.main.setBackgroundColor('#FFFFE0'); // fondo estilo mockup
-		this.add.rectangle(0, 0, resolution[0], resolution[1], 0xffffff, 1).setOrigin(0);
-		this.cameras.main.fadeIn(500, 255, 255, 255);
-		// 🎵 Notas flotantes animadas
-		this.notesGroup = this.add.group();
-		let noteKeys = ['note1', 'note2', 'note3', 'player'];
-
-		for (let i = 0; i < 12; i++) {
-			let key = Phaser.Utils.Array.GetRandom(noteKeys);
-			let note = this.add.image(
-				Phaser.Math.Between(0, resolution[0]),
-				Phaser.Math.Between(0, resolution[1]),
-				key
-			).setAlpha(0.15).setScale(Phaser.Math.FloatBetween(0.3, 0.6));
-			this.notesGroup.add(note);
-
-			this.tweens.add({
-				targets: note,
-				y: note.y - Phaser.Math.Between(20, 40),
-				duration: Phaser.Math.Between(3000, 5000),
-				yoyo: true,
-				repeat: -1,
-				ease: 'Sine.easeInOut',
-				delay: Phaser.Math.Between(0, 1000)
-			});
+	create() {
+	  gameoverContext = this;
+	  gameStatus = "Gameover";
+	  player.destroy();
+	  this.cameras.main.setBackgroundColor('#FFFFE0');
+	  this.add.rectangle(0, 0, resolution[0], resolution[1], 0xffffff, 1).setOrigin(0);
+	  this.cameras.main.fadeIn(500, 255, 255, 255);
+	  this.notesGroup = this.add.group();
+	  let noteKeys = ['note1', 'note2', 'note3', 'player'];
+	  for (let i = 0; i < 12; i++) {
+		let key = Phaser.Utils.Array.GetRandom(noteKeys);
+		let note = this.add.image(
+		  Phaser.Math.Between(0, resolution[0]),
+		  Phaser.Math.Between(0, resolution[1]),
+		  key
+		).setAlpha(0.15).setScale(Phaser.Math.FloatBetween(0.3, 0.6));
+		this.notesGroup.add(note);
+		this.tweens.add({
+		  targets: note,
+		  y: note.y - Phaser.Math.Between(20, 40),
+		  duration: Phaser.Math.Between(3000, 5000),
+		  yoyo: true,
+		  repeat: -1,
+		  ease: 'Sine.easeInOut',
+		  delay: Phaser.Math.Between(0, 1000)
+		});
+	  }
+	  this.add.text(resolution[0] / 2, resolution[1] / 2 - 140, "🎮 GAME RESULTS", {
+		font: "32px Arial",
+		fill: "#222",
+		fontStyle: "bold"
+	  }).setOrigin(0.5);
+	  const avgAccuracy = accuracyList.length > 0
+		? (accuracyList.reduce((a, b) => a + b, 0) / accuracyList.length).toFixed(1)
+		: "N/A";
+	  this.add.text(resolution[0] / 2, resolution[1] / 2 - 80, `⏱ Time: ${this.time} seconds`, { font: "22px Arial", fill: "#333", align: "center" }).setOrigin(0.5);
+	  this.add.text(resolution[0] / 2, resolution[1] / 2 - 45, `🎯 Your score: ${this.score}`, { font: "22px Arial", fill: "#333", align: "center" }).setOrigin(0.5);
+	  this.opponentScoreText = this.add.text(
+		resolution[0] / 2,
+		resolution[1] / 2 - 10,
+		`👤 Opponent score: ${this.scoreOpponent}`,
+		{ font: "22px Arial", fill: "#333", align: "center" }
+	  ).setOrigin(0.5);
+	  this.add.text(resolution[0] / 2, resolution[1] / 2 + 20, `🎵 Level: ${this.gameLevel}`, { font: "22px Arial", fill: "#333", align: "center" }).setOrigin(0.5);
+	  this.add.text(resolution[0] / 2, resolution[1] / 2 + 55, `🧠 You played: ${this.detectedNote} — Expected: ${this.expectedNote}`, { font: "22px Arial", fill: "#333", align: "center" }).setOrigin(0.5);
+	  this.add.text(resolution[0] / 2, resolution[1] / 2 + 90, `🎯 Accuracy Time: ${avgAccuracy}%`, { font: "22px Arial", fill: "#333", align: "center" }).setOrigin(0.5);
+	  this.add.text(resolution[0] / 2, resolution[1] / 2 + 125, "🔁 Press Enter to try again", { font: "22px Arial", fill: "#333", align: "center" }).setOrigin(0.5);
+	  WebRTCManager.onMessage((message) => {
+		if (message.type === 'scoreUpdate' && message.roomCode === this.roomCode) {
+		  this.scoreOpponent = message.score;
+		  this.opponentScoreText.setText(`👤 Opponent score: ${this.scoreOpponent}`);
 		}
-		this.add.text(resolution[0] / 2, resolution[1] / 2 - 140, "🎮 GAME RESULTS", {
-			font: "32px Arial",
-			fill: "#222",
-			fontStyle: "bold"
-		}).setOrigin(0.5);
-
-		const avgAccuracy = accuracyList.length > 0
-			? (accuracyList.reduce((a, b) => a + b, 0) / accuracyList.length).toFixed(1)
-			: "N/A";
-
-		const infoLines = [
-			{ icon: "⏱", label: `Time: ${this.time} seconds` },
-			{ icon: "🎯", label: `Your score: ${this.score}` },
-			{ icon: "👤", label: `Opponent score: ${this.scoreOpponent}` },
-			{ icon: "🎵", label: `Level: ${this.gameLevel}` },
-			{ icon: "🧠", label: `You played: ${this.detectedNote} — Expected: ${this.expectedNote}` },
-			{ icon: "🎯", label: `Accuracy Time: ${avgAccuracy}%` },
-			{ icon: "🔁", label: "Press Enter to try again" }
-		];
-
-		infoLines.forEach((item, i) => {
-			this.add.text(resolution[0] / 2, resolution[1] / 2 - 80 + i * 35, `${item.icon} ${item.label}`, {
-				font: "22px Arial",
-				fill: "#333",
-				align: "center"
-			}).setOrigin(0.5);
-		});
-
-		if (this.detectedNote === this.expectedNote) {
-			this.add.text(resolution[0] / 2, resolution[1] - 100,
-				"🎶 You played the correct note,\nbut not at the right time.\nTry to improve your timing!", {
-				font: "20px Arial",
-				fill: "#BB0000",
-				align: "center"
-			}).setOrigin(0.5);
+	  });
+	  const noteButton = this.add.text(resolution[0] / 2, resolution[1] - 20, '🔊 Listen to expected note', { font: '20px Arial', fill: '#000', backgroundColor: '#F0EAD2', padding: { x: 12, y: 6 } }).setOrigin(0.5).setInteractive();
+	  noteButton.on('pointerdown', () => { playNote(this.expectedNote, 1.5); });
+	  settingsButton = gameoverContext.add.image(resolution[0] - 50, 50, 'settings').setScale(0.6).setInteractive();
+	  settingsButton.on('pointerdown', function () {
+		game.scene.stop("playSceneMultiplayer");
+		game.scene.stop("gameoverScene");
+		game.scene.stop("pauseScene");
+		game.scene.start("splashScene");
+	  });
+	  playPauseButton?.destroy();
+	  playPauseButton = this.add.image(resolution[0] - 110, 50, 'restart').setScale(0.6).setInteractive();
+	  playPauseButton.on('pointerdown', () => {
+		game.anims.anims.clear();
+		game.textures.remove("grid-texture");
+		game.scene.start("playSceneMultiplayer");
+		game.scene.stop("gameoverScene");
+	  });
+	  this.input.keyboard.on('keydown', (e) => {
+		if (e.key === " " || e.key === "Enter") {
+		  game.anims.anims.clear();
+		  game.textures.remove("grid-texture");
+		  game.scene.start("playSceneMultiplayer");
+		  game.scene.stop("gameoverScene");
 		}
-
-		const noteButton = this.add.text(resolution[0] / 2, resolution[1] - 20, '🔊 Listen to expected note', {
-			font: '20px Arial',
-			fill: '#000',
-			backgroundColor: '#F0EAD2',
-			padding: { x: 12, y: 6 }
-		}).setOrigin(0.5).setInteractive();
-
-		noteButton.on('pointerdown', () => {
-			playNote(this.expectedNote, 1.5);
-		});
-
-		settingsButton = gameoverContext.add.image(resolution[0] - 50, 50, 'settings').setScale(0.6).setInteractive();
-		settingsButton.on('pointerdown', function () {
-			game.scene.stop("playSceneMultiplayer");
-			game.scene.stop("gameoverScene");
-			game.scene.stop("pauseScene");
-			game.scene.start("splashScene");
-		});
-
-		playPauseButton?.destroy();
-		playPauseButton = this.add.image(resolution[0] - 110, 50, 'restart').setScale(0.6).setInteractive();
-		playPauseButton.on('pointerdown', () => {
-			game.anims.anims.clear();
-			game.textures.remove("grid-texture");
-			game.scene.start("playSceneMultiplayer");
-			game.scene.stop("gameoverScene");
-		});
-
-		this.input.keyboard.on('keydown', function (e) {
-			if (e.key === " " || e.key === "Enter") {
-				game.anims.anims.clear();
-				game.textures.remove("grid-texture");
-				game.scene.start("playSceneMultiplayer");
-				game.scene.stop("gameoverScene");
-			}
-		});
+	  });
 	}
-};
-game.scene.add("gameoverScene", gameoverScene);
+  };
+  game.scene.add("gameoverScene", gameoverScene);
+  
 
 var pauseSceneSingle = {
 	create: function () {
@@ -3135,43 +3123,30 @@ var generateLevel = function () {
 function platformsColliderCallbackMultiplayer() {
 	if (!platformTouched && player.body.touching.down && gameStatus == "Running") {
 		score++;
-		scoreText.setText('score: ' + score);
-		if (this.dataChannel?.readyState === 'open') {
-			WebRTCManager.sendMessage({
-				type: "scoreUpdate",
-				score: score,
-				timestamp: Date.now()
-			});
-			console.log("📤 Puntaje enviado vía WebRTC:", score);
-		} else {
-			console.warn("⚠️ No se pudo enviar el puntaje: canal cerrado");
-		}
-		WebRTCManager.onMessage((message) => {
-			console.log("📩 Mensaje recibido en playSceneMultiplayer:", message);
-			this.scores.opponent = message.score;
-			opponentScoreText.setText('Opponent: ' + this.scores.opponent);
+		this.scores.player = score;
+		scoreText.setText('score: ' + this.scores.player);
+  
+	  // ÚNICAMENTE envío de score (buffer si hace falta)
+	  WebRTCManager.sendMessage({
+		type: "scoreUpdate",
+		score: this.scores.player,
+		timestamp: Date.now()
+	  });
+	  console.log("📤 Puntaje enviado vía WebRTC:", score);
+  
+	  // Si usas Socket.IO para redundancia, envías también aquí:
+	  const socket = WebRTCManager.getSocket?.();
+	  if (socket) {
+		socket.emit('updateScore', {
+		  roomCode: this.currentRoomId,
+		  score: this.scores.player
 		});
-		const socket = WebRTCManager.getSocket?.();
-		if (socket) {
-			socket.emit('updateScore', {
-				roomCode: this.currentRoomId,
-				score: this.scores.player
-			});
-			console.log("📤 Puntaje enviado al servidor vía Socket.IO");
-		}
-		this.time.delayedCall(500, () => {
-			if (socket) {
-				socket.on('updateScore', ({ roomCode, score }) => {
-					console.log("🎉 Jugador recibio el puntaje via socket:", score);
-					this.scores.opponent = score;
-					opponentScoreText.setText('Opponent: ' + this.scores.opponent);
-				});
-			}
-		});
-
+		console.log("📤 Puntaje enviado al servidor vía Socket.IO");
+	  }
 	}
-	platformTouched = true; //Needed to take only the first collision with the platform
+	platformTouched = true;
 }
+  
 
 function platformsColliderCallback() {
 	if (!platformTouched && player.body.touching.down && gameStatus == "Running") {
