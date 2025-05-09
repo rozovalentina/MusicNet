@@ -677,7 +677,7 @@ function createButton(scene, x, y, text, bgColor, textColor, width = 300, height
 			const totalWidth = iconText.width + spacing + buttonText.width;
 			iconText.x = -totalWidth / 2 + iconText.width / 2;
 			buttonText.x = iconText.x + iconText.width / 2 + spacing + buttonText.width / 2;
-		});		
+		});
 
 		contentContainer.add(buttonText);
 	} else {
@@ -1506,11 +1506,7 @@ var playSceneMultiplayer = {
 			}
 		}
 
-		// Listener de mensajes
-		WebRTCManager.onMessage((message) => {
-			console.log("📩 Mensaje recibido en playSceneMultiplayer:", message);
-			this.handleMessage?.(message);
-		});
+
 
 
 
@@ -1518,9 +1514,6 @@ var playSceneMultiplayer = {
 			console.warn("⚠️ DataChannel no está abierto en playSceneMultiplayer");
 		}
 
-		WebRTCManager.onMessage((message) => {
-			this.handleMessage?.(message);
-		});
 
 		initVariables();
 		gameContext = this;
@@ -1598,7 +1591,7 @@ var playSceneMultiplayer = {
 		measureGrids = this.physics.add.staticGroup();
 		gridLength = measurePlatformWidth;
 		numberOfInitialMeasures = resolution[0] / measurePlatformWidth;
-	
+
 
 		// Crear el grid con referencias de piano
 		for (let i = 0; i < numberOfInitialMeasures; i++) {
@@ -1612,8 +1605,9 @@ var playSceneMultiplayer = {
 		}
 
 		//Creation of collider between the player and the platforms, with a callback function
-		collider = this.physics.add.collider(player, platforms, platformsColliderCallback);
+		collider = this.physics.add.collider(player, platforms, platformsColliderCallbackMultiplayer);
 		scoreText = this.add.text(16, 16, 'Score: ' + score, { fontSize: fontSize + 'px', fill: fontColor, fontFamily: "Arial" });
+
 		opponentScoreText = this.add.text(16, 40, 'Opponent: 0', { fontSize: fontSize + 'px', fill: fontColor, fontFamily: "Arial" }).setScrollFactor(0);
 		this.startTime = this.time.now / 1000;
 		this.timeText = this.add.text(200, 16, 'Time: 0s', { fontSize: fontSize + 'px', fill: fontColor, fontFamily: "Arial" });
@@ -1792,11 +1786,33 @@ var playSceneMultiplayer = {
 					} else {
 						console.warn("⚠️ No se pudo enviar el puntaje: canal cerrado");
 					}
+					const socket = WebRTCManager.getSocket?.();
+					if (socket) {
+						socket.emit('updateScore', {
+							roomCode: this.currentRoomId,
+							score: this.scores.player
+						});
+						console.log("📤 Puntaje enviado al servidor vía Socket.IO");
+					}
+					WebRTCManager.onMessage((message) => {
+						this.handleMessage?.(message);
+					});
 					WebRTCManager.onMessage((message) => {
 						console.log("📩 Mensaje recibido en playSceneMultiplayer:", message);
 						this.scores.opponent = message.score;
 						opponentScoreText.setText('Opponent: ' + this.scores.opponent);
 					});
+
+					this.time.delayedCall(500, () => {
+						if (socket) {
+							socket.on('updateScore', ({ roomCode, score }) => {
+								console.log("🎉 Jugador recibio el puntaje via socket:", score);
+								this.scores.opponent = score;
+								opponentScoreText.setText('Opponent: ' + this.scores.opponent);
+							});
+						}
+					});
+
 					statusText.setText("Sing!");
 					tween = gameContext.add.tween({ targets: statusText, ease: 'Sine.easeInOut', duration: 300, delay: 0, alpha: { getStart: () => 1, getEnd: () => 0 } });
 					tween2 = gameContext.add.tween({ targets: statusText, ease: 'Sine.easeInOut', duration: 300, delay: 0, alpha: { getStart: () => 1, getEnd: () => 0 } });
@@ -1910,7 +1926,7 @@ var playSceneMultiplayer = {
 				platformVelocity = gameVelocity;
 			if (player.y > resolution[1] + player.height / 2) {
 				game.scene.stop("playSceneMultiplayer");
-				game.scene.start("gameoverScene", {time: elapsedTime, score: score, scoreOpponent: this.scores.opponent, gameLevel: gameLevel, gameVelocity: gameVelocity, detectedNote: lastDetectedNote || "—",expectedNote: convertLevelToNote(levelsQueue[0]) || "—"});
+				game.scene.start("gameoverScene", { time: elapsedTime, score: score, scoreOpponent: this.scores.opponent, gameLevel: gameLevel, gameVelocity: gameVelocity, detectedNote: lastDetectedNote || "—", expectedNote: convertLevelToNote(levelsQueue[0]) || "—" });
 			}
 			if (!goAhead) {
 				if (gameStatus == "Running") {
@@ -2545,7 +2561,6 @@ var playScene = {
 }
 game.scene.add("playScene", playScene);
 
-
 var pauseScene = {
 	create: function () {
 		//Change Reference Button
@@ -2654,7 +2669,7 @@ var gameoverScene = {
 		});
 
 		if (this.detectedNote === this.expectedNote) {
-			this.add.text(resolution[0] / 2, resolution[1] - 100, 
+			this.add.text(resolution[0] / 2, resolution[1] - 100,
 				"🎶 You played the correct note,\nbut not at the right time.\nTry to improve your timing!", {
 				font: "20px Arial",
 				fill: "#BB0000",
@@ -2890,7 +2905,7 @@ function createGridTexture(context, measurePlatformWidth, timeSignature) {
 
 				textureContext.fillStyle = grd;
 				textureContext.fillRect(xPointer, 0, xPointer + 5, window.innerHeight);
-				
+
 				// Agregar referencia de piano justo después de dibujar la primera línea
 				const currentScale = modalScaleName;
 				const baseNote = firstNote;
@@ -3104,6 +3119,47 @@ var generateLevel = function () {
 
 	levelHeight = (player.height * 3) + ((numberOfLevels - levelValue) * stepHeight) + (stepHeight / 2);
 	return [levelValue, levelHeight, levelDuration];
+}
+
+function platformsColliderCallbackMultiplayer() {
+	if (!platformTouched && player.body.touching.down && gameStatus == "Running") {
+		score++;
+		scoreText.setText('score: ' + score);
+		if (this.dataChannel?.readyState === 'open') {
+			WebRTCManager.sendMessage({
+				type: "scoreUpdate",
+				score: score,
+				timestamp: Date.now()
+			});
+			console.log("📤 Puntaje enviado vía WebRTC:", score);
+		} else {
+			console.warn("⚠️ No se pudo enviar el puntaje: canal cerrado");
+		}
+		WebRTCManager.onMessage((message) => {
+			console.log("📩 Mensaje recibido en playSceneMultiplayer:", message);
+			this.scores.opponent = message.score;
+			opponentScoreText.setText('Opponent: ' + this.scores.opponent);
+		});
+		const socket = WebRTCManager.getSocket?.();
+		if (socket) {
+			socket.emit('updateScore', {
+				roomCode: this.currentRoomId,
+				score: this.scores.player
+			});
+			console.log("📤 Puntaje enviado al servidor vía Socket.IO");
+		}
+		this.time.delayedCall(500, () => {
+			if (socket) {
+				socket.on('updateScore', ({ roomCode, score }) => {
+					console.log("🎉 Jugador recibio el puntaje via socket:", score);
+					this.scores.opponent = score;
+					opponentScoreText.setText('Opponent: ' + this.scores.opponent);
+				});
+			}
+		});
+
+	}
+	platformTouched = true; //Needed to take only the first collision with the platform
 }
 
 function platformsColliderCallback() {
