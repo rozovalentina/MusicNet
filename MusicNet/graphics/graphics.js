@@ -300,6 +300,17 @@ var splashScene = {
 				game.scene.stop("splashScene");
 				game.scene.start("multiplayerScene");
 			}, "🌐");
+		// Aviso sobre ruido ambiental
+		this.add.text(resolution[0] / 2, resolution[1] - 60,
+			"🔊 For best performance, please play in a quiet environment.\nBackground noise may affect note detection.",
+			{
+				fontFamily: "Arial",
+				fontSize: "24px",
+				color: "#444",
+				align: "center",
+				wordWrap: { width: resolution[0] - 40 }
+			}
+		).setOrigin(0.5);
 	}
 };
 
