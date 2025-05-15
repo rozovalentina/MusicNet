@@ -116,4 +116,8 @@ function stop() {
     this.oscillator = null;
   }
 }
-  
+
+// Para las pruebas
+module.exports = {
+  Tuner
+};

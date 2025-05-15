@@ -12,6 +12,9 @@ patterns[7] = [+2, +2, +1, -2, -2, +1]  //ascending triad arpeggio sequence
 
 var patternQueue = [] // it cointatins a sequence of note
 
+// Variable para pruebas
+const DEFAULT_SCALE_LENGTH = 8;
+
 /*
 * function called from graphics module
 * return a pair values represented the duration and a note
@@ -67,9 +70,27 @@ function getDurationAndNote(){
   return [parseFloat(duration), noteLevel]
 }
 
+//Funcion corregida para pruebas
+function newPattern() {
+  const queue = [];
+  const patChoice = patterns[Math.floor(Math.random() * patterns.length)];
+  const firstLevel = Math.floor(Math.random() * DEFAULT_SCALE_LENGTH) + 1;
+  const directionOfPattern = patChoice.reduce((a, b) => a + b, 0);
+  let currentLevel = firstLevel;
+  queue.push(currentLevel);
+  patChoice.forEach(step => {
+    currentLevel += step;
+    // asegúrate de que currentLevel quede dentro de 1..DEFAULT_SCALE_LENGTH
+    if (currentLevel < 1) currentLevel = 1;
+    if (currentLevel > DEFAULT_SCALE_LENGTH) currentLevel = DEFAULT_SCALE_LENGTH;
+    queue.push(currentLevel);
+  });
+  return queue;
+}
 
 // this function returns a pattern of level notes in a queue
 // the patterns starts from a random level of the scale and it has a random length (min 1 periods). But all the pattern is within the octave
+/* Funcion comentada por pruebas
 function newPattern(){
   queue = []
   patChoice = patterns[Math.floor(Math.random() * patterns.length)]    // returns a random pattern from the defined list of patterns
@@ -108,7 +129,7 @@ function newPattern(){
 
   
   return queue
-}
+}*/
 
 // sum of two values
 function add(a, b) {
@@ -127,3 +148,11 @@ statisticalDuration[3/4] = 0.02
 statisticalDuration[4/4] = 0.01
 
 statisticalDuration["pattern"] = 0.2
+
+// Para pruebas
+module.exports = {
+  getDurationAndNote,
+  newPattern,
+  add,
+  statisticalDuration
+};

@@ -85,9 +85,10 @@ var GAME_MODE = {
 * Reference: http://keithwhor.github.io/audiosynth/
 */
 
+/*Comentado para pruebas
 Synth instanceof AudioSynth; // true
 Synth.setVolume(0.8)
-var pianoInstrument = Synth.createInstrument('piano');
+var pianoInstrument = Synth.createInstrument('piano');*/
 
 // note is a musical note (ex C#5)
 // durationSingleNote is in seconds
@@ -319,3 +320,23 @@ function buttonPlayReference(){
   pianoInstrument.play(name, octave, 2)
 
 }
+
+// Para las pruebas
+module.exports = {
+  convertNoteToLevel,
+  convertLevelToNote,
+  getScale,
+  scaleToStepsArray,
+  // más pruebas
+  handleDetectedNote,
+  newNote,
+  playNote,
+  playScale,
+  getExpectedNoteTime,
+  changeGameLevel,
+  setReference,
+  changeNoteReference,
+  changeScaleReference,
+  playLevel
+};
+
