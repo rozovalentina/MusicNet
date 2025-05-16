@@ -39,6 +39,7 @@ Tuner.prototype.startRecord = function () {
   navigator.mediaDevices
     .getUserMedia({ audio: true })
     .then(function(stream) {
+      self.stream = stream;
       self.audioContext.createMediaStreamSource(stream).connect(self.analyser);
       self.analyser.connect(self.scriptProcessor);
       self.scriptProcessor.connect(self.audioContext.destination);

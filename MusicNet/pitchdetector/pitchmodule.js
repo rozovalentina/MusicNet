@@ -6,128 +6,137 @@ Reference: https://github.com/qiuxiang/tuner
 var beforeInJumpArea = false
 var lastDetectedNote = null;
 
+const SR             = 44100;
+const PACKET_DIM     = 512;
+const WINDOW_PACKETS = 16;
+   
+let pc           = null;
+let dataChannel  = null;
+let seq          = 0;
+let pcmBuffer    = [];
+
+//const OFFER_URL = "http://localhost:8081/offer";
+const OFFER_URL = "https://a768-2803-8290-200-1de8-85cf-4dff-cb54-6a8f.ngrok-free.app/offer";
+
 const PitchDetector = function() {
-  this.tuner = new Tuner()
-  this.notes = new Notes('.notes', this.tuner)
+  this.tuner = new Tuner();
+  this.notes = new Notes('.notes', this.tuner);
+  this.pendingComparison = false;
   //this.update({ name: 'A', frequency: 440, octave: 4, value: 69, cents: 0 })
 }
 
-PitchDetector.prototype.start = function() {
-  const self = this
+PitchDetector.prototype.start = async function() {
 
-  self.tuner.init()
-  setTimeout(() => {
-    if (self.tuner.analyser) {
-      self.frequencyData = new Uint8Array(self.tuner.analyser.frequencyBinCount);
+  this.tuner.init();
+  this.tuner.onNoteDetected = note => {
+    if (!this.notes.isAutoMode) return;
+    const musicalNote = note.name + note.octave;
+    if (musicalNote !== this.lastLocalNote) {
+      this.lastLocalNote = musicalNote;
+      newNote(musicalNote);
+      this.pendingComparison = true;
+      this._sendCurrentWindow();
     }
-  }, 500);
-
-
-  this.tuner.onNoteDetected = function(note) {
-    if (self.notes.isAutoMode) {
-      if (self.lastNote === note.name && self.lastOctave === note.octave) {
-        //self.update(note)
-        //stessa nota della precedente (approssimata in centesimi)
-        //DURATA DELLA NOTA
-        // -> qui posso rilevare i centesimi di divverenza
-
-        musicalNote = note.name + note.octave
-        //console.log("SAME NOTE:" + musicalNote)
-
-
-      } else {
-        self.lastNote = note.name
-        self.lastOctave = note.octave
-
-        musicalNote = note.name + note.octave
-        //console.log(musicalNote)
-        // CALL ScaleMapping Module
-        lastDetectedNote = musicalNote;
-        self.lastLocalNote = musicalNote;
-        newNote(musicalNote)
-        //self.lastNote = null
-        self.detectRemoteNote();
-        
-      }
-
-      //se sono a ridosso di un salto "azzero" il pitch per poter eventualmente cantare la stessa nota
-      // eseguo questo codice solamente la prima volte che entro nella jumpArea (e rilevo un pitch)
-      if(jumpArea && !beforeInJumpArea){
-        //console.log("JumpArea")
-        beforeInJumpArea = true
-        self.lastNote = null
-        self.lastOctave = null
-      }
-
-      if(!jumpArea)
-        beforeInJumpArea = false
-    }
-  }
-
+  };
   
-}
-
-PitchDetector.prototype.detectRemoteNote = async function() {
-  try {
-    const resultado = await grabarYEnviarAudio();
-    if (resultado.note) {
-      console.log("🎼 Nota detectada en servidor:", resultado.note);
-
-      // Comparar con la nota local más reciente
-      if (resultado.note === this.lastLocalNote) {
-        console.log("✅ Coinciden: nota local y remota son iguales:", resultado.note);
-      } else {
-        console.log("❌ Diferencia: local =", this.lastLocalNote, ", servidor =", resultado.note);
-      }
-
-    } else {
-      console.warn("⚠️ No se detectó ninguna nota en el servidor.");
-    }
-  } catch (err) {
-    console.error("❌ Error al enviar audio al servidor:", err);
+  const stream = this.tuner.stream;  
+  if (!stream) {
+    console.error("Tuner aún no ha capturado el audio");
+    return;
   }
+
+  await this._initWebRTC(stream);
+
+  this._handleStream(stream);
 };
 
-async function grabarYEnviarAudio() {
-  return new Promise((resolve, reject) => {
-    navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
-      const mediaRecorder = new MediaRecorder(stream);
-      const chunks = [];
-
-      mediaRecorder.ondataavailable = event => {
-        if (event.data.size > 0) chunks.push(event.data);
-      };
-
-      mediaRecorder.onstop = async () => {
-        const audioBlob = new Blob(chunks, { type: 'audio/webm' });
-        const formData = new FormData();
-        formData.append("audio", audioBlob, "nota.webm");
-        try {
-          const response = await fetch("https://parcnet-api.onrender.com/detect_note", {
-            method: "POST",
-            body: formData
-          });          
-          const result = await response.json();
-          resolve(result); // {note: "C4", frequency: 261.63}
-        } catch (error) {
-          reject(error);
-        }
-      };
-
-      mediaRecorder.start();
-      setTimeout(() => mediaRecorder.stop(), 1000); // Graba 1 segundo
-    });
+PitchDetector.prototype._initWebRTC = async function(stream) {
+  pc = new RTCPeerConnection({ iceServers: [ { urls: 'stun:stun.l.google.com:19302' } ] });
+  stream.getAudioTracks().forEach(track => {
+    pc.addTrack(track, stream);
   });
-}
 
+  dataChannel = pc.createDataChannel("control");
+  dataChannel.binaryType = "arraybuffer";
+  this._setupDataChannel();
 
-/*
-PitchDetector.prototype.update = function(note) {
-  this.notes.update(note)
-  this.meter.update((note.cents / 50) * 45)
-}*/
+  const offer = await pc.createOffer();
 
-// enable or disable the detection
+  await pc.setLocalDescription(offer);
+
+  const res = await fetch(OFFER_URL, {
+    method: "POST",
+    mode: "cors",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      sdp: pc.localDescription.sdp,
+      type: pc.localDescription.type
+    })
+  });
+  const { sdp, type } = await res.json();
+  await pc.setRemoteDescription(new RTCSessionDescription({ sdp, type }));
+
+  pc.oniceconnectionstatechange = () => {
+    console.log("ICE connection state:", pc.iceConnectionState);
+  };
+
+  pc.ondatachannel = ev => {
+    dataChannel = ev.channel;
+    this._setupDataChannel();
+  };
+};
+
+PitchDetector.prototype._setupDataChannel = function() {
+  dataChannel.onopen = () => console.log("🟢 DataChannel abierto con PARCnet");
+  dataChannel.onmessage = ev => {
+    if (!this.pendingComparison) return;
+    this.pendingComparison = false;
+    try {
+      const { note, frequency, loss_rate } = JSON.parse(ev.data);
+      if (note === this.lastLocalNote) {
+        console.log("✅ Coinciden:", note);
+      } else {
+        //console.log("❌ Diferencia: local =", this.lastLocalNote, ", servidor =", note);
+      }
+    } catch (e) {
+      console.error("Error procesando mensaje de DataChannel:", e);
+    }
+  };
+  dataChannel.onerror = err => console.error("❌ DataChannel error:", err);
+  dataChannel.onclose = () => console.warn("⚠ DataChannel cerrado");
+};
+
+PitchDetector.prototype._handleStream = function(stream) {
+  const ctx    = this.tuner.audioContext;
+  const source = ctx.createMediaStreamSource(stream);
+  const proc   = ctx.createScriptProcessor(PACKET_DIM, 1, 1);
+
+  proc.onaudioprocess = e => {
+    const float32 = e.inputBuffer.getChannelData(0);
+    pcmBuffer.push(float32.buffer);
+    if (pcmBuffer.length >= WINDOW_PACKETS) this._sendCurrentWindow();
+  };
+  source.connect(proc);
+  proc.connect(ctx.destination);
+  console.log("🟢 AudioProcessor started (SR =", ctx.sampleRate, "Hz)");
+};
+
+PitchDetector.prototype._sendCurrentWindow = function() {
+  if (!dataChannel || dataChannel.readyState !== 'open') return;
+  dataChannel.send(JSON.stringify({ seq: seq++ }));
+  // envía el buffer PCM
+  const totalLen = pcmBuffer.reduce((a, b) => a + b.byteLength, 0);
+  const merged   = new Float32Array(totalLen / 4);
+  let offset = 0;
+  pcmBuffer.forEach(buf => {
+    const view = new Float32Array(buf);
+    merged.set(view, offset);
+    offset += view.length;
+  });
+  dataChannel.send(merged.buffer);
+  pcmBuffer = [];
+};
+
 PitchDetector.prototype.toggleEnable = function() {
   this.notes.toggleAutoMode()
 }
@@ -136,7 +145,6 @@ PitchDetector.prototype.isEnable = function() {
   return this.notes.isAutoMode
 }
 
-// this method is for the upgrade of AudioContext (December 2018)
 PitchDetector.prototype.resumeAudioContext = function() {
   this.tuner.audioContext.resume()
 }
