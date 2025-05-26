@@ -2686,6 +2686,14 @@ var gameoverScene = {
 		  this.opponentScoreText.setText(`👤 Opponent score: ${this.scoreOpponent}`);
 		}
 	  });
+	  if (this.detectedNote === this.expectedNote) {
+		this.add.text(resolution[0] / 2, resolution[1] - 100,
+			"🎶 You played the correct note,\nbut not at the right time.\nTry to improve your timing!", {
+			font: "20px Arial",
+			fill: "#BB0000",
+			align: "center"
+		}).setOrigin(0.5);
+	}
 	  const noteButton = this.add.text(resolution[0] / 2, resolution[1] - 20, '🔊 Listen to expected note', { font: '20px Arial', fill: '#000', backgroundColor: '#F0EAD2', padding: { x: 12, y: 6 } }).setOrigin(0.5).setInteractive();
 	  noteButton.on('pointerdown', () => { playNote(this.expectedNote, 1.5); });
 	  settingsButton = gameoverContext.add.image(resolution[0] - 50, 50, 'settings').setScale(0.6).setInteractive();
