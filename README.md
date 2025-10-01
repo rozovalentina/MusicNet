@@ -101,17 +101,3 @@ If you use MusicNet in your research or teaching, please cite:
 }
 ---
 
-## 📜 License
-
-This project is licensed under the MIT License – see the LICENSE
- file for details.
-
----
-
-## 👩‍💻 Authors
-
-Valentina Rozo González
-
-Paula Valentina López Cubillos
-
-Developed as part of the undergraduate thesis project in Systems Engineering.
