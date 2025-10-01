@@ -73,7 +73,7 @@ All system diagrams (architecture, sequence, class, deployment) are available in
 - **Software Design Document (SDD)**  
 - **Project Management Plan (PMP)**  
 
-👉 [Full Documentation Repository](https://github.com/rozovalentina/musicnet-docs)  
+👉 [Full Documentation Repository](https://github.com/rozovalentina/musicnet)  
 
 ---
 
